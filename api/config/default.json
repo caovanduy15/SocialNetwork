@@ -1,0 +1,4 @@
+{
+    "mongoURI": "mongodb://localhost/social_network",
+    "jwtSecret": "social_network_secret"
+}

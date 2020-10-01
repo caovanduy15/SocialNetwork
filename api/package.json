@@ -1,0 +1,22 @@
+{
+  "name": "socialnetwork",
+  "version": "1.0.0",
+  "description": "the api ",
+  "main": "server.js",
+  "scripts": {
+    "server": "nodemon server.js"
+  },
+  "author": "team20201",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "config": "^3.3.2",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.10.7",
+    "nodemon": "^2.0.4"
+  },
+  "nodemonConfig": {
+    "ignore": ["./node_modules/*"]
+}
+}
