@@ -4,14 +4,17 @@ const Schema = mongoose.Schema;
 const UserSchema = new Schema({
     name: {
         type: String,
-        required: true,
     },
-    email: {
+    // email: {
+    //     type: String,
+    //     required: true,
+    //     lowercase: true,
+    //     trim: true,
+    //     unique: true,
+    // },
+    phoneNumber: {
         type: String,
         required: true,
-        lowercase: true,
-        trim: true,
-        unique: true,
     },
     passwordResetToken: String,
     passwordResetTokenExpiry: Date,

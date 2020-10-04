@@ -3,33 +3,38 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('config');
+const validInput = require('../utils/validInput');
 
 // Item Model
 const User = require("../models/User");
 
-// @route  POST api/auth/register
+// @route  POST api/auth/signup
 // @desc   Register new user
 // @access Public
 // Example: Use Postman
-// URL: http://127.0.0.1:5000/api/auth/login
+// URL: http://127.0.0.1:5000/api/auth/signup
 // BODY: {
-// "email": "nguyen@gmail.com",
+// "phoneNumber": "0789554152",
 // "password": "nguyen123"
 //}
-router.post('/register', (req, res) => {
-    const { name, email, password } = req.body;
+router.post('/signup', (req, res) => {
+    const { phoneNumber, password } = req.body;
 
-    if (!name || !email || !password){
-        return res.status(400).json({ msg: "Please Enter All Fields "});
+    if (!phoneNumber || !password){
+        return res.status(400).json({ code: 1004, message: "Please Enter All Fields "});
     }
-
+    if (!validInput.checkPhoneNumber(phoneNumber)){
+        return res.status(400).json({ code: 1004, message: "phone number is invalid"});
+    }
+    if (!validInput.checkUserPassword(password)){
+        return res.status(400).json({code: 1004, message: "password is invalid"});
+    }
     // check for existing user
-    User.findOne({ email })
+    User.findOne({ phoneNumber })
         .then( user => {
-            if (user) return res.status(400).json({ msg: "User has existed "});
+            if (user) return res.status(400).json({ code: 9996, message: "User existed "});
             const newUser = new User({
-                name,
-                email,
+                phoneNumber,
                 password
             });
 
@@ -47,11 +52,12 @@ router.post('/register', (req, res) => {
                                 (err, token) => {
                                     if (err) throw err;
                                     res.json({
+                                        code: 1000,
+                                        message: "OK",
                                         token: token,
                                         user: {
                                             id: user.id,
-                                            name: user.name,
-                                            email: user.email
+                                            phoneNumber: user.phoneNumber
                                         }
                                     })
                                 }
@@ -65,24 +71,28 @@ router.post('/register', (req, res) => {
 // @route  POST api/auth/login
 // @desc   Authenticate user
 // @access Public
-
 router.post('/login', (req, res) => {
-    const { email, password } = req.body;
+    const { phoneNumber, password } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).json({ msg: "Please enter all fields" })
+    if (!phoneNumber || !password) {
+        return res.status(400).json({code: 1004, message: "Please enter all fields" })
     }
-
+    if (!validInput.checkPhoneNumber(phoneNumber)){
+        return res.status(400).json({ code: 1004, message: "phone number is invalid"});
+    }
+    if (!validInput.checkUserPassword(password)){
+        return res.status(400).json({code: 1004, message: "password is invalid"});
+    }
     // check for existing user
-    User.findOne({ email })
+    User.findOne({ phoneNumber })
         .then(user => {
-            if (!user) return res.status(400).json({ msg: "User doesn't exists" });
+            if (!user) return res.status(400).json({code:9995, message: "User doesn't exists" });
             console.log("starting compare");
             // validate password
             bcrypt.compare(password, user.password)
                 .then(isMatch => {
                     console.log(`isMatch: ${isMatch}`);
-                    if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" })
+                    if (!isMatch) return res.status(400).json({code: 9995, message: "Wrong Password" })
 
                     jwt.sign(
                         { id: user.id },
@@ -91,12 +101,11 @@ router.post('/login', (req, res) => {
                         (err, token) => {
                             if (err) throw err;
                             res.json({
-                                msg: "Login successfully",
+                                message: "Login successfully",
                                 token: token,
                                 user: {
                                     id: user.id,
-                                    name: user.name,
-                                    email: user.email
+                                    phoneNumber: user.phoneNumber
                                 }
                             }
 
