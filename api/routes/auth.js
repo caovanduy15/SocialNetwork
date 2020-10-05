@@ -10,12 +10,6 @@ const User = require("../models/User");
 // @route  POST api/auth/register
 // @desc   Register new user
 // @access Public
-// Example: Use Postman
-// URL: http://127.0.0.1:5000/api/auth/login
-// BODY: {
-// "email": "nguyen@gmail.com",
-// "password": "nguyen123"
-//}
 router.post('/register', (req, res) => {
     const { name, email, password } = req.body;
 
