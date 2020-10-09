@@ -4,15 +4,13 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 var router = express.Router();
 
-// API PUT /it4788/edit_post
+// API DELETE /it4788/delete_post
 // EXAMPLE BODY: {
 //      "token": "xxxxxx",
-//      "id": "5f80246e161f7f4bf594cd2b",
-//      "described": "edit post",
-//      "status": "Happy"
+//      "id": "5f80246e161f7f4bf594cd2b"
 // }
-router.put('/', verifyToken, (req, res) => {
-    var { id, status, image, image_del, image_sort, video, described, auto_accept, auto_block } = req.body;
+router.delete('/', verifyToken, (req, res) => {
+    var { id } = req.body;
     if (!id) return res.status(400).json({code:1002, message: "not enough param"});
     var user = req.user;
     Post.findById(id).populate('author').exec( (err, post) => {
@@ -23,9 +21,7 @@ router.put('/', verifyToken, (req, res) => {
             res.status(400).json({code: 1009, message: "not access because user not owner of post"})
         } else {
             // update data
-            post.status = status;
-            post.described = described;
-            post.save()
+            Post.deleteOne(post)
                 .then(() => res.status(200).json({code: 1000, message: "OK"}))
                 .catch(err => res.json({code: 1005, message: "Unknown Error"}));
         }
