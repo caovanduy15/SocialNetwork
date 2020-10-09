@@ -2,7 +2,13 @@ const router = require('express').Router();
 const Post = require('../models/Post');
 const verify = require('../verifyToken');
 
-router.post('/add_post', verify, async (req, res) => {
+router.post('/', verify, async (req, res) => {
+
+    const userExist = await User.findById(req.user.id);
+    if(!userExist) return res.status(400).send({
+        code: 9995,
+        message: "User is not validated",
+    });
 
     const post = new Post({
         author: req.user.id,

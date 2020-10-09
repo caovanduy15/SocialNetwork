@@ -3,7 +3,10 @@ const config = require('config');
 
 module.exports = function(req, res, next) {
     const token = req.body.token;
-    if(!token) return res.status(401).send('Access Denied');
+    if(!token) return res.status(401).send({
+        code: 9998,
+        message: "Token is invalid"
+      });
 
     try {
         const verified = jwt.verify(token, config.get('jwtSecret'));

@@ -2,8 +2,8 @@ const router = require('express').Router();
 const Post = require('../models/Post');
 const verify = require('../verifyToken');
 
-router.post('/get_post', verify, (req, res) => {
-    const posts = Post.findById(req.body.id).populate('author').
+router.post('/', verify, (req, res) => {
+    Post.findById(req.body.id).populate('author').
     exec(function (err, post) {
       if (err) return res.status(404).send({
         code: 9992,
@@ -18,9 +18,9 @@ router.post('/get_post', verify, (req, res) => {
             described: post.described,
             created: post.created,
             modified: null,
-            like: null,
+            like: post.likedUser.length,
             comment: null,
-            is_liked: null,
+            is_liked: post.likedUser.includes(req.user.id),
             author: {
                 id: post.author.id,
                 name: post.author.name
