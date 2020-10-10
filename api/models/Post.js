@@ -1,36 +1,38 @@
-import mongoose from 'mongoose';
-
+const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-/**
- * Post schema that has references to User, Like and Comment schemas
- */
-const postSchema = Schema(
-  {
-    title: String,
-    image: String,
-    imagePublicId: String,
+const postSchema = new Schema({
+    // author of post
     author: {
-      type: Schema.Types.ObjectId,
-      required: true,
-      ref: 'User',
+        type: Schema.Types.ObjectId,
+        ref: 'user',
+        required: true
     },
-    likes: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Like',
-      },
-    ],
-    comments: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Comment',
-      },
-    ],
-  },
-  {
-    timestamps: true,
-  }
-);
+    // description of post
+    described: {
+        type: String
+    },
+    // status of author
+    status: {
+        type: String
+    },
+    // time when post is created
+    created: {
+        type: Date,
+        default: Date.now()
+    },
+    // time when post is modified
+    modified: {
+        type: Date
+    },
+    // number people liked post
+    like: {
+        type: Number
+    },
+    //number people commented post
+    comment: {
+        type: Number
+    }
+});
 
-module.exports = Post = mongoose.model('posts', postSchema);
+module.exports = mongoose.model('Post', postSchema);
