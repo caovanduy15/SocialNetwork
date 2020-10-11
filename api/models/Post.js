@@ -32,7 +32,11 @@ const postSchema = new Schema({
     //number people commented post
     comment: {
         type: Number
-    }
+    },
+    // like user
+    likedUser: [{
+        type: Schema.Types.ObjectId,
+        ref: 'user'
+    }]
 });
-
 module.exports = mongoose.model('Post', postSchema);
