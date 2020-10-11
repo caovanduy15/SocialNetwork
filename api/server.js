@@ -17,9 +17,9 @@ mongoose.connect(url,
 );
 
 // use Routes
-app.use('/it4788', require('./routes/auth'));
+app.use('/it4788/auth', require('./routes/auth'));
 app.use('/it4788/edit_post',require('./routes/edit_post'));
-app.use('/it4788/add_post',require('./routes/add_post'));
+//app.use('/it4788/add_post',require('./routes/add_post'));
 app.use('/it4788/delete_post',require('./routes/delete_post'));
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`Server is running on port ${port}`))
