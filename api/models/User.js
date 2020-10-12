@@ -21,6 +21,10 @@ const UserSchema = new Schema({
     register_date: {
         type: Date,
         default: Date.now
+    },
+    verify_code: {
+        type: Number,
+        required: true
     }
 })
 

@@ -11,17 +11,11 @@ const User = require("../models/User");
 // @route  POST it4788/signup
 // @desc   Register new user
 // @access Public
-router.post('/signup', (req, res) => {
-    const { phoneNumber, password } = req.body;
+router.post('/register', (req, res) => {
+    const { name, email, password, phone_number } = req.body;
 
-    if (!phoneNumber || !password){
-        return res.status(400).json({ code: 1004, message: "Please Enter All Fields "});
-    }
-    if (!validInput.checkPhoneNumber(phoneNumber)){
-        return res.status(400).json({ code: 1004, message: "phone number is invalid"});
-    }
-    if (!validInput.checkUserPassword(password)){
-        return res.status(400).json({code: 1004, message: "password is invalid"});
+    if (!name || !email || !password || !phone_number){
+        return res.status(400).json({ msg: "Please Enter All Fields "});
     }
     // check for existing user
     User.findOne({ phoneNumber })
@@ -40,8 +34,6 @@ router.post('/signup', (req, res) => {
                     newUser.save()
                         .then( user => {
                             // send verify code
-
-                            
                             res.json({
                                 code: 1000,
                                 message: "OK",
@@ -58,19 +50,60 @@ router.post('/signup', (req, res) => {
                             })
                         })
                 })
-            })
         })
+    })
 })
 
-// @route  POST it4788/login
-// @desc   Authenticate user
+
+// @route  POST it4788/get_verify_code
+// @desc   get verified code
 // @access Public
-// Example: Use Postman
-// URL: http://127.0.0.1:5000/it4788/login
-// BODY: {
-// "phoneNumber": "0789554152",
-// "password": "nguyen123"
-//}
+router.post('/get_verify_code', (req, res) => {
+    const {phone_number} = req.body;
+
+    if (!phone_number){
+      return res.status(400).json({ msg: "Please enter your phone number"});
+    }
+
+    User.findOne({ phone_number }).then( user => {
+        if (!user) return res.status(400).json({ msg: "Invalid phone number"});
+        else res.json({
+            msg: "Success",
+            verify_code: user.verify_code
+        });
+    });
+});
+
+
+// @route  POST it4788/check_verify_code
+// @desc   check verified code
+// @access Public
+router.post('/check_verify_code', (req, res) => {
+    const {phone_number, verify_code} = req.body;
+
+    if (!phone_number){
+      return res.status(400).json({ msg: "Please enter your phone number"});
+    }
+
+    if (!verify_code){
+        return res.status(400).json({ msg: "Please enter the code"});
+    }
+
+    User.findOne({ phone_number }).then( user => {
+        if (!user)
+            return res.status(400).json({ msg: "Invalid phone number"});
+        else if (user.verify_code != verify_code)
+            return res.status(400).json({ msg: "Wrong code"});
+        else res.json({
+            msg: "Your account has been verified",
+        });
+    });
+});
+
+
+// @route  POST it4788/check_verify_code
+// @desc   login
+// @access Public
 router.post('/login', (req, res) => {
     const { phoneNumber, password } = req.body;
 
@@ -118,12 +151,10 @@ router.post('/login', (req, res) => {
         })
 })
 
+
 // @route  POST it4788/logout
 // @desc   logout
 // @access Public
-// Example: Use Postman
-// URL: http://127.0.0.1:5000/it4788/logout
-// BODY: token
 router.post("/logout",(req, res) => {
     var { token } = req.body;
 
