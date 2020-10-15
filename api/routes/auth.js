@@ -12,9 +12,9 @@ const User = require("../models/User");
 // @desc   Register new user
 // @access Public
 router.post('/register', (req, res) => {
-    const { name, email, password, phone_number } = req.body;
+    const { name, password, phoneNumber } = req.body;
 
-    if (!name || !email || !password || !phone_number){
+    if (!name || !password || !phoneNumber){
         return res.status(400).json({ msg: "Please Enter All Fields "});
     }
     // check for existing user
@@ -31,6 +31,7 @@ router.post('/register', (req, res) => {
                 bcrypt.hash(newUser.password, salt, (err, hash) => {
                     if (err) throw err;
                     newUser.password = hash;
+                    newUser.verify_code = Math.floor(Math.random() * (99999 - 10000) + 10000)
                     newUser.save()
                         .then( user => {
                             // send verify code
@@ -41,7 +42,7 @@ router.post('/register', (req, res) => {
                                     id: user.id,
                                     phoneNumber: user.phoneNumber
                                 }
-                            }) 
+                            })
                         })
                         .catch (err => {
                             res.json({
@@ -59,13 +60,13 @@ router.post('/register', (req, res) => {
 // @desc   get verified code
 // @access Public
 router.post('/get_verify_code', (req, res) => {
-    const {phone_number} = req.body;
+    const {phoneNumber} = req.body;
 
-    if (!phone_number){
+    if (!phoneNumber){
       return res.status(400).json({ msg: "Please enter your phone number"});
     }
 
-    User.findOne({ phone_number }).then( user => {
+    User.findOne({ phoneNumber }).then( user => {
         if (!user) return res.status(400).json({ msg: "Invalid phone number"});
         else res.json({
             msg: "Success",
@@ -79,9 +80,9 @@ router.post('/get_verify_code', (req, res) => {
 // @desc   check verified code
 // @access Public
 router.post('/check_verify_code', (req, res) => {
-    const {phone_number, verify_code} = req.body;
+    const {phoneNumber, verify_code} = req.body;
 
-    if (!phone_number){
+    if (!phoneNumber){
       return res.status(400).json({ msg: "Please enter your phone number"});
     }
 
@@ -89,7 +90,7 @@ router.post('/check_verify_code', (req, res) => {
         return res.status(400).json({ msg: "Please enter the code"});
     }
 
-    User.findOne({ phone_number }).then( user => {
+    User.findOne({ phoneNumber }).then( user => {
         if (!user)
             return res.status(400).json({ msg: "Invalid phone number"});
         else if (user.verify_code != verify_code)
@@ -146,7 +147,7 @@ router.post('/login', (req, res) => {
                                 }
                             )
                         })
-                    
+
                 })
         })
 })
@@ -161,7 +162,7 @@ router.post("/logout",(req, res) => {
     // no token
     if (!token) return res.status(400).json({code: 1004, message: "not correct parameter!"});
     jwt.verify(token,config.get('jwtSecret'), (err, user) =>{
-        
+
         // not valid token
         if (("undefined" === typeof (user))) {
             return res.json({code: 1004, message: "not correct parameter!"});

@@ -24,7 +24,6 @@ const UserSchema = new Schema({
     },
     verify_code: {
         type: Number,
-        required: true
     }
 })
 
