@@ -3,7 +3,6 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('config');
-const validInput = require('../utils/validInput');
 
 // Item Model
 const User = require("../models/User");
@@ -22,6 +21,7 @@ router.post('/register', (req, res) => {
         .then( user => {
             if (user) return res.status(400).json({ code: 9996, message: "User existed "});
             const newUser = new User({
+                name,
                 phoneNumber,
                 password
             });
@@ -31,7 +31,7 @@ router.post('/register', (req, res) => {
                 bcrypt.hash(newUser.password, salt, (err, hash) => {
                     if (err) throw err;
                     newUser.password = hash;
-                    newUser.verify_code = Math.floor(Math.random() * (99999 - 10000) + 10000)
+                    newUser.verify_code = Math.floor(Math.random() * (99999 - 10000) + 10000);
                     newUser.save()
                         .then( user => {
                             // send verify code

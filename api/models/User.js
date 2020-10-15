@@ -2,20 +2,12 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const UserSchema = new Schema({
-    phone_number: {
-        type: String,
-        required: true
-    },
     name: {
         type: String,
-        required: true,
     },
-    email: {
+    phoneNumber: {
         type: String,
-        required: true,
-        lowercase: true,
-        trim: true,
-        unique: true,
+        required: true
     },
     passwordResetToken: String,
     passwordResetTokenExpiry: Date,
@@ -28,8 +20,7 @@ const UserSchema = new Schema({
         default: Date.now
     },
     verify_code: {
-        type: Number,
-        required: true
+        type: Number
     }
 })
 
