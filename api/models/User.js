@@ -18,13 +18,16 @@ const UserSchema = new Schema({
         type: String,
         required: true,
     },
-    register_date: {
+    registerDate: {
         type: Date,
         default: Date.now
     },
-    verify_code: {
+    verifyCode: {
         type: Number,
         required: true
+    },
+    isVerified: {
+      type: Boolean
     }
 })
 
