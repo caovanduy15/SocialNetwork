@@ -7,21 +7,28 @@ const UserSchema = new Schema({
     },
     phoneNumber: {
         type: String,
-        required: true
+        required: true,
     },
     passwordResetToken: String,
     passwordResetTokenExpiry: Date,
+    dateLogin: {
+        type: Date
+    },
     password: {
         type: String,
         required: true,
     },
-    register_date: {
+    registerDate: {
         type: Date,
         default: Date.now
     },
-    verify_code: {
-        type: Number
+    verifyCode: {
+        type: Number,
+        required: true
+    },
+    isVerified: {
+      type: Boolean
     }
 })
 
-module.exports = User = mongoose.model('user', UserSchema);
+module.exports = User = mongoose.model('users', UserSchema);
