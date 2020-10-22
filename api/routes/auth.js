@@ -72,10 +72,6 @@ router.post('/signup', (req, res) => {
     })
 })
 
-<<<<<<< HEAD
-
-=======
->>>>>>> c23eca59d69079722ff212a9e8403bed3f3d41bf
 // @route  POST it4788/get_verify_code
 // @desc   get verified code
 // @access Public
@@ -182,7 +178,43 @@ router.post('/login', (req, res) => {
     })
 })
 
+router.post("/change_password", (req, res) => {
+    const { phoneNumber, oldPassword, newPassword } = req.body;
 
+    if (!phoneNumber || !oldPassword || !newPassword) {
+      return res.status(400).json({ code: 1004, message: "Please enter all fields" })
+    }
+    if (!validInput.checkPhoneNumber(phoneNumber)) {
+      return res.status(400).json({ code: 1004, message: "Phone number is invalid" });
+    }
+    if (!validInput.checkUserPassword(oldPassword)) {
+      return res.status(400).json({ code: 1004, message: "Old password is invalid" });
+    }
+    if (!validInput.checkUserPassword(newPassword)) {
+      return res.status(400).json({ code: 1004, message: "New password is invalid" });
+    }
+    User.findOne({ phoneNumber })
+      .then(user => {
+        if (!user) return res.status(400).json({ code: 9995, message: "User doesn't exists" });
+        // validate password
+        bcrypt.compare(oldPassword, user.password)
+          .then(isMatch => {
+            if (!isMatch) return res.status(400).json({ code: 9995, message: "Wrong old password" })
+            else
+            bcrypt.genSalt(10, (err, salt) => {
+              bcrypt.hash(newPassword, salt, (err, hash) => {
+                if (err) throw err;
+                user.password = hash;
+                user.save();
+                res.json({
+                  code: 1000,
+                  message: "Your password has beed changed",
+                })
+              })
+            })
+        })
+    })
+});
 // @route  POST it4788/logout
 // @desc   logout
 // @access Public
