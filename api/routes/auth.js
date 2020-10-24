@@ -179,13 +179,10 @@ router.post('/login', (req, res) => {
 })
 
 router.post("/change_password", (req, res) => {
-    const { phoneNumber, oldPassword, newPassword } = req.body;
+    const { token, oldPassword, newPassword } = req.body;
 
-    if (!phoneNumber || !oldPassword || !newPassword) {
+    if (!token || !oldPassword || !newPassword) {
       return res.status(400).json({ code: 1004, message: "Please enter all fields" })
-    }
-    if (!validInput.checkPhoneNumber(phoneNumber)) {
-      return res.status(400).json({ code: 1004, message: "Phone number is invalid" });
     }
     if (!validInput.checkUserPassword(oldPassword)) {
       return res.status(400).json({ code: 1004, message: "Old password is invalid" });
@@ -193,26 +190,30 @@ router.post("/change_password", (req, res) => {
     if (!validInput.checkUserPassword(newPassword)) {
       return res.status(400).json({ code: 1004, message: "New password is invalid" });
     }
-    User.findOne({ phoneNumber })
-      .then(user => {
-        if (!user) return res.status(400).json({ code: 9995, message: "User doesn't exists" });
-        // validate password
-        bcrypt.compare(oldPassword, user.password)
-          .then(isMatch => {
-            if (!isMatch) return res.status(400).json({ code: 9995, message: "Wrong old password" })
-            else
-            bcrypt.genSalt(10, (err, salt) => {
-              bcrypt.hash(newPassword, salt, (err, hash) => {
-                if (err) throw err;
-                user.password = hash;
-                user.save();
-                res.json({
-                  code: 1000,
-                  message: "Your password has beed changed",
+    jwt.verify(token, config.get('jwtSecret'), (err, user) => {
+
+      // not valid token
+      if (("undefined" === typeof (user))) {
+        return res.json({ code: 1004, message: "Invalid token" });
+      }
+
+      // valid token
+      User.findById(user.id, (err, user) => {
+          bcrypt.compare(oldPassword, user.password)
+            .then(isMatch => {
+              if (!isMatch) return res.status(400).json({ code: 9995, message: "Wrong old password" })
+              else
+              bcrypt.genSalt(10, (err, salt) => {
+                bcrypt.hash(newPassword, salt, (err, hash) => {
+                  if (err) throw err;
+                  user.password = hash;
+                  user.save()
+                      .then(() => res.json({ code: 1000, message: "Your password has been changed" }))
+                      .catch(err => res.json({ code: 1005, message: err.message }))
                 })
               })
-            })
-        })
+          })
+      })
     })
 });
 // @route  POST it4788/logout
@@ -239,6 +240,26 @@ router.post("/logout", (req, res) => {
     })
   })
 })
+
+router.post("/set_devtoken", (req, res) => {
+    var { token, devtype, devtoken} = req.body;
+    jwt.verify(token, config.get('jwtSecret'), (err, user) => {
+
+      // not valid token
+      if (("undefined" === typeof (user))) {
+        return res.json({ code: 1004, message: "Invalid token" });
+      }
+      if (user.isBlocked){
+          return res.json({ code: 1004, message: "Your account is blocked" });
+      }
+    })
+    if (!token || !devtype || !devtoken)
+        return res.status(400).json({ code: 1004, message: "Please enter all fields" });
+    else if (devtype != "Android" && devtype != "IOS")
+        return res.status(400).json({ code: 1004, message: "Invalid device type" });
+    else
+        return res.status(400).json({ code: 1000, message: "Your device information has been recorded" });
+});
 
 function random4digit() {
   return Math.floor(Math.random() * 9000) + 1000;
