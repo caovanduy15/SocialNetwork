@@ -48,8 +48,6 @@ router.post('/signup', (req, res) => {
           newUser.save()
             .then(user => {
               // send verify code
-
-
               res.json({
                 code: 1000,
                 message: "OK",

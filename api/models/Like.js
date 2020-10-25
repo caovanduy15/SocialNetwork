@@ -9,11 +9,11 @@ const likeSchema = Schema(
   {
     post: {
       type: Schema.Types.ObjectId,
-      ref: 'Post',
+      ref: 'posts',
     },
     user: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'users',
     },
   },
   {

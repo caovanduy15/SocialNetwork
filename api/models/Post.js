@@ -5,7 +5,7 @@ const postSchema = new Schema({
     // author of post
     author: {
         type: Schema.Types.ObjectId,
-        ref: 'user',
+        ref: 'users',
         required: true
     },
     // description of post
@@ -36,7 +36,7 @@ const postSchema = new Schema({
     // like user
     likedUser: [{
         type: Schema.Types.ObjectId,
-        ref: 'user'
+        ref: 'users'
     }]
 });
 module.exports = mongoose.model('posts', postSchema);
