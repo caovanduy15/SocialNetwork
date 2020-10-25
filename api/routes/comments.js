@@ -47,7 +47,7 @@ router.post('/set_comment', verify, async (req, res) => {
             data: {
                 id: savedComment._id,
                 comment: savedComment.comment,
-                created: savedComment.createdAt,
+                created: savedComment.created,
                 poster: {
                     id: poster._id,
                     name: poster.name,
@@ -84,7 +84,7 @@ router.post('/get_comment', verify, async (req, res) => {
                 return {
                     id: comment._id,
                     comment: comment.comment,
-                    created: comment.createdAt,
+                    created: comment.created,
                     poster: {
                         id: comment.poster._id,
                         name: comment.poster.name,
