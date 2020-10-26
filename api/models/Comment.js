@@ -11,11 +11,11 @@ const commentSchema = Schema({
   },
   post: {
     type: Schema.Types.ObjectId,
-    ref: "Post",
+    ref: "posts",
   },
   poster: {
     type: Schema.Types.ObjectId,
-    ref: "User",
+    ref: "users",
   },
   created: {
     type: Date,
