@@ -33,6 +33,6 @@ module.exports = function(req, res, next) {
         res.status(400).send({
             code: 9998,
             message: "Token is invalid"
-          });
+        });
     }
 }
