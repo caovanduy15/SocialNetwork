@@ -1,74 +1,89 @@
 const router = require('express').Router();
 const Post = require('../models/Post');
 const verify = require('../utils/verifyToken');
+var multer  = require('multer')
+var upload = multer({ dest: 'uploads/' })
 
 // @route  POST it4788/post/get_posts
 // @desc   get posts
 // @access Public
-router.post('/get_posts', verify, (req, res) => {
-    Post.findById(req.body.id).populate('author').
-    exec(function (err, post) {
-      if (err) return res.status(404).send({
-        code: 9992,
-        message: "Post is not existed"
-      });
-
-      res.send({
-        code: 1000,
-        message: "OK",
-        data: {
-            id: post._id,
-            described: post.described,
-            created: post.created,
-            modified: null,
-            like: post.likedUser.length,
-            comment: null,
-            is_liked: post.likedUser.includes(req.user.id),
-            author: {
-                id: post.author.id,
-                name: post.author.name
-            },
-            state: post.state
-        }
-      });
-    });;
+router.post('/get_post', verify, (req, res, next) => {
+    // Get post
+    Post.findById(req.body.id)
+        .populate('author')
+        .exec()
+        .then(post => {
+            // console.log(post);
+            if(post) {
+                res.status(200).send({
+                    code: 1000,
+                    message: "OK",
+                    data: {
+                        id: post._id,
+                        described: post.described,
+                        created: post.created,
+                        modified: post.modified,
+                        like: post.likedUser.length,
+                        comment: post.comments.length,
+                        is_liked: post.likedUser.includes(req.user.id),
+                        author: {
+                            id: post.author._id,
+                            name: post.author.name
+                        },
+                        state: post.state
+                    }
+                  });
+            } else {
+                res.status(404).send({
+                    code: 9992,
+                    message: "Post is not existed"
+                });
+            }
+        })
+        .catch(err => {
+            // console.log(err);
+            res.status(500).send({
+                code: 1001,
+                message: "Can not connect to DB"
+            });
+        });
 });
 
 
 // @route  POST it4788/post/add_post
 // @desc   add new post
 // @access Public
-router.post('/add_post', verify, async (req, res) => {
+var cpUpload = upload.fields([{ name: 'image', maxCount: 3 }, { name: 'video', maxCount: 1 }])
+router.post('/add_post', cpUpload, verify, (req, res, next) => {
+    // Validation
 
-    const userExist = await User.findById(req.user.id);
-    if(!userExist) return res.status(400).send({
-        code: 9995,
-        message: "User is not validated",
-    });
-
+    // Create Post
     const post = new Post({
         author: req.user.id,
         described: req.body.described,
         status: req.body.status
     });
 
-    try {
-        const savedPost = await post.save();
-        console.log(savedPost);
-        res.status(200).send({
-            code: 1000,
-            message: "OK",
-            data: {
-                id: savedPost._id,
-                url: null
-            }
+    // Save Post
+    post.save()
+        .then(result => {
+            // console.log(result);
+            res.status(201).send({
+                code: 1000,
+                message: "OK",
+                data: {
+                    id: result._id,
+                    url: null
+                }
+            });
+        })
+        .catch(err => {
+            // console.log(err);
+            res.status(500).send({
+                code: 1001,
+                message: "Can not connect to DB"
+            });
         });
-    } catch (err) {
-        res.status(400).send({
-            code: 1001,
-            message: "Can not connect to DB"
-        });
-    }
 });
 
 
