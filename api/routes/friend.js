@@ -94,7 +94,7 @@ router.post('/get_requested_friends', verify, async (req, res) => {
 router.post('/set_request_friend', verify, async (req, res) => {
   let code, message;
   let data = {
-    requested_friendsz: null // số người đang đươc tài khoản hiện tại gửi request friend
+    requested_friends: null // số người đang đươc tài khoản hiện tại gửi request friend
   }
 
   let { token, user_id } = req.body; // user_id là id của người nhận request friend
@@ -138,7 +138,7 @@ router.post('/set_request_friend', verify, async (req, res) => {
         code = 1010;
         message = "you two are friend already!!"
       }
-
+      data.requested_friends= thisUser.friendRequestSent.length;
 
     } catch (err) {
       if (!targetUser) {
@@ -153,7 +153,7 @@ router.post('/set_request_friend', verify, async (req, res) => {
     }
   }
 
-  res.json({ code, message })
+  res.json({ code, message, data})
 })
 
 // @route  POST it4788/friend/set_accept_friend
