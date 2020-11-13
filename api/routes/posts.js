@@ -4,6 +4,11 @@ const Post = require('../models/Post');
 const verify = require('../utils/verifyToken');
 var multer  = require('multer');
 const { Storage } = require('@google-cloud/storage');
+const MAX_IMAGE_NUMBER = 4;
+const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
+const MAX_VIDEO_NUMBER = 1;
+const MAX_SIZE_VIDEO = 10 * 1024 * 1024; // for 10MB
+const MAX_WORD_POST = 500;
 
 // Create new storage instance with Firebase project credentials
 const storage = new Storage({
@@ -18,23 +23,10 @@ const bucket =
 // Initiating a memory storage engine to store files as Buffer objects
 const uploader = multer({
     storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 5 * 1024 * 1024, // keep images size < 5 MB
-    },
-    fileFilter: function(req, file, cb) {
-        checkFileType(file, cb);
-    }
 });
 
-function checkFileType(file, cb) {
-    const filetypes = /jpeg|jpg|png|mp4/;
-    const mimetype = filetypes.test(file.mimetype);
-
-    if(mimetype) {
-        cb(null, true);
-    } else {
-        cb(new Error('I don\'t have a clue!'), false);
-    }
+function countWord(str) {
+    return str.split(" ").length;
 }
 
 // @route  POST it4788/post/get_list/posts
@@ -49,6 +41,13 @@ router.post('/get_list_posts', /*verify,*/ (req, res) => {
 // @desc   get post
 // @access Public
 router.post('/get_post', verify, (req, res, next) => {
+    if(!req.body.id) {
+        console.log("No have parameter id");
+        return res.status(500).send({
+            code: 1002,
+            message: "Parameter is not enought"
+        });
+    }
     // Get post
     Post.findById(req.body.id)
         .populate('author')
@@ -67,8 +66,8 @@ router.post('/get_post', verify, (req, res, next) => {
                         like: post.likedUser.length,
                         comment: post.comments.length,
                         is_liked: post.likedUser.includes(req.user.id),
-                        image: post.image.length > 0 ? post.image.map(image => { return {id: image._id, url: image.url};}) : undefined,
-                        video: post.video.length > 0 ? post.video : undefined,
+                        image: post.image.map(image => { return {id: image._id, url: image.url};}),
+                        video: post.video,
                         author: {
                             id: post.author._id,
                             name: post.author.name
@@ -84,7 +83,13 @@ router.post('/get_post', verify, (req, res, next) => {
             }
         })
         .catch(err => {
-            // console.log(err);
+            if(err.kind == "ObjectId") {
+                console.log("Sai id");
+                return res.status(500).send({
+                    code: 1004,
+                    message: "Parameter value is invalid"
+                });
+            }
             res.status(500).send({
                 code: 1001,
                 message: "Can not connect to DB"
@@ -112,57 +117,83 @@ function uploadFile(file) {
 // @route  POST it4788/post/add_post
 // @desc   add new post
 // @access Public
-var cpUpload = uploader.fields([{ name: 'image', maxCount: 3 }, { name: 'video', maxCount: 1 }]);
-router.post('/add_post', function (req, res, next) {
-    cpUpload(req, res, function (err) {
-      if (err instanceof multer.MulterError) {
-        // A Multer error occurred when uploading.
-        if(err.code == "LIMIT_UNEXPECTED_FILE" && err.field == 'image' ) {
-            return res.status(500).send({
-                code: 1008,
-                message: "Maximum number of images"
-            });
-        }
-        if(err.code == "LIMIT_FILE_SIZE" && err.field == 'image' ) {
-            return res.status(500).send({
-                code: 1008,
-                message: "File size is too big"
-            });
-        }
-        if(err.code == "LIMIT_UNEXPECTED_FILE" && err.field == 'video' ) {
-            return res.status(500).send({
-                code: 1008,
-                message: "Maximum number of video"
-            });
-        }
-        if(err.code == "LIMIT_FILE_SIZE" && err.field == 'video' ) {
-            return res.status(500).send({
-                code: 1008,
-                message: "File size is too big"
-            });
-        }
-
-        return res.send(err);
-      } else if (err) {
-        // An unknown error occurred when uploading.
-        return res.status(500).send({
-            code: 1003,
-            message: "Parameter type is invalid"
-        });
-      }
-
-      // Everything went fine.
-      next();
-    })
-    }, verify, async (req, res, next) => {
+var cpUpload = uploader.fields([{ name: 'image'}, { name: 'video'}]);
+router.post('/add_post', cpUpload, verify, async (req, res, next) => {
     try {
-        // console.log(req.files.image === undefined);
-        // return res.send(req.files.image);
+        if(req.body.described && countWord(req.body.described) > MAX_WORD_POST) {
+            console.log("MAX_WORD_POST");
+            return res.status(500).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
+        }
+
         if(req.files.image && req.files.video) {
+            console.log("Have image and video");
             return res.status(500).send({
                 code: 1003,
                 message: "Parameter type is invalid"
             });
+        }
+
+        if(req.files.image) {
+            if(req.files.image.length > MAX_IMAGE_NUMBER) {
+                console.log("Max image number");
+                return res.status(500).send({
+                    code: 1008,
+                    message: "Maximum number of images"
+                });
+            }
+
+            for(const image of req.files.image) {
+                const filetypes = /jpeg|jpg|png/;
+                const mimetype = filetypes.test(image.mimetype);
+                if(!mimetype) {
+                    console.log("Mimetype image is invalid");
+                    return res.status(500).send({
+                        code: 1003,
+                        message: "Parameter type is invalid"
+                    });
+                }
+
+                if (image.buffer.byteLength > MAX_SIZE_IMAGE) {
+                    console.log("Max image file size");
+                    return res.status(500).send({
+                        code: 1008,
+                        message: "File size is too big"
+                    });
+                }
+            }
+        }
+
+        if(req.files.video) {
+            if(req.files.video.length > MAX_VIDEO_NUMBER) {
+                console.log("MAX_VIDEO_NUMBER");
+                return res.status(500).send({
+                    code: 1008,
+                    message: "Maximum number of video"
+                });
+            }
+
+            for(const video of req.files.video) {
+                const filetypes = /mp4/;
+                const mimetype = filetypes.test(video.mimetype);
+                if(!mimetype) {
+                    console.log("Mimetype video is invalid");
+                    return res.status(500).send({
+                        code: 1003,
+                        message: "Parameter type is invalid"
+                    });
+                }
+
+                if (video.buffer.byteLength > MAX_SIZE_VIDEO) {
+                    console.log("Max video file size");
+                    return res.status(500).send({
+                        code: 1008,
+                        message: "File size is too big"
+                    });
+                }
+            }
         }
 
         let promises;
@@ -202,11 +233,8 @@ router.post('/add_post', function (req, res, next) {
                         author: req.user.id,
                         described: req.body.described,
                         status: req.body.status,
-                        video: {
-                            url: file[0].url
-                        }
+                        video: file[0]
                     });
-                    console.log(post);
                 } else {
                     // Create Post
                     post = new Post({
