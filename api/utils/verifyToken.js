@@ -19,6 +19,11 @@ module.exports = function(req, res, next) {
                 {
                     req.user = verified;
                     next();
+                } else {
+                  res.status(400).send({
+                    code: 9998,
+                    message: "User has logout"
+                  });
                 }
             } else {
                 res.status(400).send({
