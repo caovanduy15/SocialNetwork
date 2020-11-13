@@ -4,6 +4,14 @@ const verify = require('../utils/verifyToken');
 
 router.post('/like', verify, async (req, res) => {
     try {
+        if(!req.body.id) {
+            console.log("No have parameter id");
+            return res.status(500).send({
+                code: 1002,
+                message: "Parameter is not enought"
+            });
+        }
+
         const post = await Post.findById(req.body.id);
         if(!post) {
             return res.status(404).send({
@@ -35,6 +43,13 @@ router.post('/like', verify, async (req, res) => {
         });
 
     } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return res.status(500).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
+        }
         console.log(err);
         res.status(400).send({
             code: 1001,
