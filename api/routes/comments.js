@@ -3,14 +3,35 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const verify = require('../utils/verifyToken');
+const MAX_WORD_COMMENT = 500;
+const COUNT_DEFAULT  = 2;
+
+function countWord(str) {
+    return str.split(" ").length;
+}
 
 // @route  POST it4788/comment/set_comment
 // @desc   add new comment
 // @access Public
 router.post('/set_comment', verify, async (req, res) => {
+    if(!req.body.id || !req.body.comment || !req.body.index || !req.body.count) {
+        console.log("No have parameter id, comment, index, count");
+        return res.status(500).send({
+            code: 1002,
+            message: "Parameter is not enought"
+        });
+    }
 
     try {
         // Validation
+        if(req.body.comment && countWord(req.body.comment) > MAX_WORD_COMMENT) {
+            console.log("MAX_WORD_COMMENT");
+            return res.status(500).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
+        }
+
         const post = await Post.findById(req.body.id);
         if(!post) {
             return res.status(400).send({
@@ -57,6 +78,13 @@ router.post('/set_comment', verify, async (req, res) => {
             is_blocked: null
         });
     } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return res.status(500).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
+        }
         console.log(err);
         res.status(400).send({
             code: 1001,
@@ -69,18 +97,39 @@ router.post('/set_comment', verify, async (req, res) => {
 // @desc   add new comment
 // @access Public
 router.post('/get_comment', verify, async (req, res) => {
+    if(!req.body.id || (req.body.index !== 0 || req.body.count !== 0) && (!req.body.index || !req.body.count)) {
+        console.log("No have parameter id, index, count");
+        return res.status(500).send({
+            code: 1002,
+            message: "Parameter is not enought"
+        });
+    }
+
     try {
-        const post = await Post.findById(req.body.id).populate('comments').populate({
-                path: 'comments',
-                populate: {
-                    path: 'poster',
-                    model: 'users'
-                }
+        const post = await Post.findById(req.body.id);
+
+        if(!post) {
+            console.log('Post is not existed');
+            return res.status(404).send({
+                code: 9992,
+                message: "Post is not existed"
             });
+        }
+
+        const comments = await Comment.find({post: req.body.id}).populate('poster').sort("-created");
+
+        if(comments.length == 0) {
+            console.log('Post no have comments');
+            return res.status(500).send({
+                code: 9994,
+                message: "No data or end of list data"
+            });
+        }
+
         res.status(200).send({
             code: 1000,
             message: "OK",
-            data: post.comments.map(comment => {
+            data: comments.map(comment => {
                 return {
                     id: comment._id,
                     comment: comment.comment,
@@ -95,6 +144,13 @@ router.post('/get_comment', verify, async (req, res) => {
                 })
             });
     } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return res.status(500).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
+        }
         console.log(err);
         res.status(400).send({
             code: 1001,

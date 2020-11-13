@@ -25,7 +25,10 @@ const UserSchema = new Schema({
     verifyCode: {
         type: Number,
     },
-    isVerified:{
+    isVerified: {
+      type: Boolean
+    },
+    isBlocked: {
         type: Boolean,
         default: false
     },
