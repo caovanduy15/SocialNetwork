@@ -28,7 +28,26 @@ const UserSchema = new Schema({
     isVerified:{
         type: Boolean,
         default: false
-    }
+    },
+    friends: [{
+      type: Schema.Types.ObjectId,
+      ref: 'users',
+    }],
+    friendRequestReceived: [{
+      fromUser: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
+      },
+      lastCreated: {
+        type: Date,
+        default: Date.now
+      },
+    }],
+    friendRequestSent: [{
+      type: Schema.Types.ObjectId,
+      ref: 'users',
+    }]
+
 })
 
 module.exports = User = mongoose.model('users', UserSchema);
