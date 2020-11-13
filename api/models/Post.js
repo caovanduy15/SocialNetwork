@@ -42,5 +42,15 @@ const postSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'comments'
     }],
+    image: [{
+        url: {
+            type: String
+        }
+    }],
+    video: {
+        url: {
+            type: String
+        }
+    }
 });
 module.exports = mongoose.model('posts', postSchema);
