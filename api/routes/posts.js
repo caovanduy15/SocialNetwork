@@ -32,9 +32,47 @@ function countWord(str) {
 // @route  POST it4788/post/get_list/posts
 // @desc   get list posts
 // @access Public
-router.post('/get_list_posts', /*verify,*/ (req, res) => {
+router.post('/get_list_posts', verify, async (req, res) => {
+    if((req.body.index !== 0 || req.body.count !== 0) && (!req.body.index || !req.body.count)) {
+        console.log("No have parameter index, count");
+        return res.status(500).send({
+            code: 1002,
+            message: "Parameter is not enought"
+        });
+    }
 
-    res.send("Get list posts");
+    const posts = await Post.find().populate('author').sort("-created");
+
+    if(!posts) {
+        console.log('No have posts');
+        return res.status(500).send({
+            code: 9994,
+            message: "No data or end of list data"
+        });
+    }
+
+    res.status(200).send({
+                    code: 1000,
+                    message: "OK",
+                    data: posts.map(post => {
+                        return {
+                            id: post._id,
+                            described: post.described,
+                            created: post.created,
+                            modified: post.modified,
+                            like: post.likedUser.length,
+                            comment: post.comments.length,
+                            is_liked: post.likedUser.includes(req.user.id),
+                            image: post.image.map(image => { return {id: image._id, url: image.url};}),
+                            video: post.video,
+                            author: {
+                                id: post.author._id,
+                                name: post.author.name
+                            },
+                            state: post.state
+                        }
+                    })
+                  });
 });
 
 // @route  POST it4788/post/get_post
