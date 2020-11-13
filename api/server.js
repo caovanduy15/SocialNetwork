@@ -1,12 +1,15 @@
 const express = require('express')
 const mongoose = require('mongoose')
 const path = require('path')
+const cors = require('cors');
 
 const app = express()
 const config = require("config")
 
 // use express.json as middleware
 app.use(express.json())
+app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
 // connect to MongoDB
 const url = config.get("mongoURI");
@@ -18,6 +21,9 @@ mongoose.connect(url,
 
 // use Routes
 app.use('/it4788/auth', require('./routes/auth'));
-app.use('/it4788/post',require('./routes/posts'));
+app.use('/it4788/post', require('./routes/posts'));
+app.use('/it4788/search', require('./routes/search'));
+app.use('/it4788/comment',require('./routes/comments'));
+app.use('/it4788/like',require('./routes/likes'));
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`Server is running on port ${port}`))

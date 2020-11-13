@@ -48,8 +48,6 @@ router.post('/signup', (req, res) => {
           newUser.save()
             .then(user => {
               // send verify code
-
-
               res.json({
                 code: 1000,
                 message: "OK",
@@ -71,6 +69,7 @@ router.post('/signup', (req, res) => {
       })
     })
 })
+
 
 // @route  POST it4788/get_verify_code
 // @desc   get verified code
@@ -121,7 +120,6 @@ router.post('/check_verify_code', (req, res) => {
           code: 1005,
           message: "Unknown Error"
         }))
-
     }
   });
 });

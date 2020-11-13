@@ -24,11 +24,10 @@ const UserSchema = new Schema({
     },
     verifyCode: {
         type: Number,
-        required: true
     },
     isVerified: {
       type: Boolean
-  },
+    },
     isBlocked: {
         type: Boolean,
         default: false
