@@ -2,6 +2,6 @@
     "mongoURI": "mongodb://localhost/social_network",
     "jwtSecret": "social_network_secret",
     "GCLOUD_PROJECT_ID": "test-88cb8",
-    "GCLOUD_APPLICATION_CREDENTIALS": "services/myprivatekey.json",
+    "GCLOUD_APPLICATION_CREDENTIALS": "config/myprivatekey.json",
     "GCLOUD_STORAGE_BUCKET_URL": "gs://test-88cb8.appspot.com"
 }

@@ -1,2 +1,2 @@
 api/node_modules
-api/services/*.json
+api/config/myprivatekey.json
