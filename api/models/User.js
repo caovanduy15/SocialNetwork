@@ -30,8 +30,13 @@ const UserSchema = new Schema({
         default: false
     },
     friends: [{
-      type: Schema.Types.ObjectId,
-      ref: 'users',
+      friend: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
+      },
+      createdAt: {
+        type: Date
+      }
     }],
     friendRequestReceived: [{
       fromUser: {
