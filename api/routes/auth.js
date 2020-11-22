@@ -155,7 +155,7 @@ router.post('/login', (req, res) => {
               jwt.sign(
                 { id: loginUser.id, dateLogin: loginUser.dateLogin },
                 config.get('jwtSecret'),
-                { expiresIn: 3600 },
+                { expiresIn: 86400 },
                 (err, token) => {
                   if (err) throw err;
                   res.json({
