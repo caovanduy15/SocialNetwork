@@ -201,15 +201,15 @@ router.post("/change_password", (req, res) => {
             .then(isMatch => {
               if (!isMatch) return res.status(400).json({ code: 9995, message: "Wrong old password" })
               else
-              bcrypt.genSalt(10, (err, salt) => {
-                bcrypt.hash(newPassword, salt, (err, hash) => {
-                  if (err) throw err;
-                  user.password = hash;
-                  user.save()
-                      .then(() => res.json({ code: 1000, message: "Your password has been changed" }))
-                      .catch(err => res.json({ code: 1005, message: err.message }))
+                bcrypt.genSalt(10, (err, salt) => {
+                  bcrypt.hash(newPassword, salt, (err, hash) => {
+                    if (err) throw err;
+                    user.password = hash;
+                    user.save()
+                        .then(() => res.json({ code: 1000, message: "Your password has been changed" }))
+                        .catch(err => res.json({ code: 1005, message: err.message }))
+                  })
                 })
-              })
           })
       })
     })
