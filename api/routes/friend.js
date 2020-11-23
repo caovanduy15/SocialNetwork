@@ -174,6 +174,11 @@ router.post('/set_accept_friend', verify, async (req, res) => {
     try {
       thisUser = await User.findById(id);
       sentUser = await User.findById(user_id);
+
+      // chưa có kiểm tra đã yêu cầu chưa 
+      let checkindex = thisUser.friendRequestReceived.findIndex(element =>
+        element.fromUser._id.equals(sentUser._id));
+      if(checkindex < 0) return res.json({ code: 1004, message: "chưa gửi lời mời"});
       if (is_accept == 0) {
         // xóa req bên nhận
 
