@@ -14,6 +14,11 @@ const UserSchema = new Schema({
     dateLogin: {
         type: Date
     },
+    avatar: {
+        url: {
+            type: String
+        }
+    },
     password: {
         type: String,
         required: true,

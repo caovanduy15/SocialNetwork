@@ -4,6 +4,28 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('config');
 const validInput = require('../utils/validInput');
+const verify = require('../utils/verifyToken');
+
+var multer  = require('multer');
+const { Storage } = require('@google-cloud/storage');
+const MAX_IMAGE_NUMBER = 4;
+const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
+
+// Create new storage instance with Firebase project credentials
+
+const storage = new Storage({
+    projectId: config.get("GCLOUD_PROJECT_ID"),
+    keyFilename: config.get("GCLOUD_APPLICATION_CREDENTIALS"),
+});
+
+// Create a bucket associated to Firebase storage bucket
+const bucket =
+    storage.bucket(config.get("GCLOUD_STORAGE_BUCKET_URL"));
+
+// Initiating a memory storage engine to store files as Buffer objects
+const uploader = multer({
+    storage: multer.memoryStorage(),
+});
 
 // Item Model
 const User = require("../models/User");
@@ -257,6 +279,48 @@ router.post("/set_devtoken", (req, res) => {
         return res.status(400).json({ code: 1004, message: "Invalid device type" });
     else
         return res.status(400).json({ code: 1000, message: "Your device information has been recorded" });
+});
+
+router.post("/change_info_after_signup", uploader.single('avatar'), (req, res) =>{
+    // do what you want
+    // Validation
+    if (!req.file || !req.body.username){
+        return res.json({ code: 1004, message: "Please enter all the fields" });
+    }
+    jwt.verify(req.body.token, config.get('jwtSecret'), (err, user) => {
+
+      // not valid token
+      if (("undefined" === typeof (user))) {
+        return res.json({ code: 1004, message: "Invalid token" });
+      }
+
+      User.findById(user.id, (err, user) => {
+          user.name = req.body.username;
+          user.avatar = req.file;
+          user.save()
+              .then(result => {
+                  // console.log(result);
+                  res.status(201).send({
+                      code: 1000,
+                      message: "Successfully change user information",
+                      data: {
+                          id: user.id,
+                          username: user.name,
+                          phoneNumber: user.phoneNumber,
+                          created: Date.now(),
+                          avatar: req.file
+                      }
+                  });
+              })
+              .catch(err => {
+                  // console.log(err);
+                  res.status(500).send({
+                      code: 1001,
+                      message: "Can not connect to DB"
+                  });
+              });
+      })
+    })
 });
 
 router.post("/check_new_version", (req, res) => {
