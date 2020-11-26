@@ -4,8 +4,8 @@
   "description": "the api ",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "server": "nodemon server.js"
+    "start": "node api/server.js",
+    "server": "nodemon api/server.js"
   },
   "author": "team20201",
   "license": "ISC",
