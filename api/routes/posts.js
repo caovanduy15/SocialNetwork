@@ -12,7 +12,10 @@ const MAX_WORD_POST = 500;
 // Create new storage instance with Firebase project credentials
 const storage = new Storage({
     projectId: process.env.GCLOUD_PROJECT_ID,
-    keyFilename: process.env.GCLOUD_APPLICATION_CREDENTIALS,
+    credentials: {
+        private_key: process.env.private_key,
+        client_email: process.env.client_email
+    }
 });
 
 // Create a bucket associated to Firebase storage bucket
