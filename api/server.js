@@ -1,10 +1,9 @@
+require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
-const path = require('path')
 const cors = require('cors');
 
 const app = express()
-const config = require("config")
 
 // use express.json as middleware
 app.use(express.json())
@@ -12,7 +11,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 
 // connect to MongoDB
-const url = config.get("mongoURI");
+const url = process.env.mongoURI;
 mongoose.connect(url,
     { useNewUrlParser: true, useUnifiedTopology: true, useCreateIndex: true })
     .then(() => console.log("MongoDB connected"))
