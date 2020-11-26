@@ -5,13 +5,6 @@ const UserSchema = new Schema({
     name: {
         type: String,
     },
-    // email: {
-    //     type: String,
-    //     required: true,
-    //     lowercase: true,
-    //     trim: true,
-    //     unique: true,
-    // },
     phoneNumber: {
         type: String,
         required: true,
@@ -25,10 +18,44 @@ const UserSchema = new Schema({
         type: String,
         required: true,
     },
-    register_date: {
+    registerDate: {
         type: Date,
         default: Date.now
-    }
+    },
+    verifyCode: {
+        type: Number,
+    },
+    isVerified: {
+      type: Boolean
+    },
+    isBlocked: {
+        type: Boolean,
+        default: false
+    },
+    friends: [{
+      friend: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
+      },
+      createdAt: {
+        type: Date
+      }
+    }],
+    friendRequestReceived: [{
+      fromUser: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
+      },
+      lastCreated: {
+        type: Date,
+        default: Date.now
+      },
+    }],
+    friendRequestSent: [{
+      type: Schema.Types.ObjectId,
+      ref: 'users',
+    }]
+
 })
 
-module.exports = User = mongoose.model('user', UserSchema);
+module.exports = User = mongoose.model('users', UserSchema);

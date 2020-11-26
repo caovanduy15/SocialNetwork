@@ -1,12 +1,15 @@
 const express = require('express')
 const mongoose = require('mongoose')
 const path = require('path')
+const cors = require('cors');
 
 const app = express()
 const config = require("config")
 
 // use express.json as middleware
 app.use(express.json())
+app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
 // connect to MongoDB
 const url = config.get("mongoURI");
@@ -17,10 +20,12 @@ mongoose.connect(url,
 );
 
 // use Routes
-app.use('/it4788', require('./routes/auth'));
-app.use('/it4788/edit_post',require('./routes/edit_post'));
-app.use('/it4788/add_post',require('./routes/add_post'));
-app.use('/it4788/delete_post',require('./routes/delete_post'));
+app.use('/it4788/auth', require('./routes/auth'));
+app.use('/it4788/friend', require('./routes/friend'));
+app.use('/it4788/post', require('./routes/posts'));
+app.use('/it4788/search', require('./routes/search'));
+app.use('/it4788/comment',require('./routes/comments'));
+app.use('/it4788/like',require('./routes/likes'));
+app.use('/it4788/friend', require('./routes/friend'));
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`Server is running on port ${port}`))
-
