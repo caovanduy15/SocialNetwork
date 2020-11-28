@@ -3,6 +3,31 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const validInput = require('../utils/validInput');
+const verify = require('../utils/verifyToken');
+
+var multer  = require('multer');
+const { Storage } = require('@google-cloud/storage');
+const MAX_IMAGE_NUMBER = 4;
+const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
+
+// Create new storage instance with Firebase project credentials
+
+const storage = new Storage({
+    projectId: process.env.GCLOUD_PROJECT_ID,
+    credentials: {
+        private_key: process.env.private_key,
+        client_email: process.env.client_email
+    }
+});
+
+// Create a bucket associated to Firebase storage bucket
+const bucket =
+    storage.bucket(process.env.GCLOUD_STORAGE_BUCKET_URL);
+
+// Initiating a memory storage engine to store files as Buffer objects
+const uploader = multer({
+    storage: multer.memoryStorage(),
+});
 
 // Item Model
 const User = require("../models/User");
@@ -258,6 +283,52 @@ router.post("/set_devtoken", (req, res) => {
         return res.status(400).json({ code: 1000, message: "Your device information has been recorded" });
 });
 
+router.post("/change_info_after_signup", uploader.single('avatar'), (req, res) =>{
+    // do what you want
+    // Validation
+    if (!req.file || !req.body.username){
+        return res.json({ code: 1004, message: "Please enter all the fields" });
+    }
+    jwt.verify(req.body.token, config.get('jwtSecret'), (err, user) => {
+
+      // not valid token
+      if (("undefined" === typeof (user))) {
+        return res.json({ code: 1004, message: "Invalid token" });
+      }
+
+      User.findById(user.id, (err, user) => {
+          let promises;
+          promises = uploadFile(req.file);
+          promises.then(result => {
+              console.log(result);
+              user.name = req.body.username;
+              user.avatar = result;
+              user.save()
+                  .then(result => {
+                      res.status(201).send({
+                          code: 1000,
+                          message: "Successfully change user information",
+                          data: {
+                              id: user.id,
+                              username: user.name,
+                              phoneNumber: user.phoneNumber,
+                              created: Date.now(),
+                              avatar: user.avatar
+                          }
+                      });
+                  })
+                  .catch(err => {
+                      // console.log(err);
+                      res.status(500).send({
+                          code: 1001,
+                          message: "Can not connect to DB"
+                      });
+                  });
+          });
+      })
+    })
+});
+
 router.post("/check_new_version", (req, res) => {
     var { token, lastUpdate } = req.body;
     if (!token || !lastUpdate)
@@ -296,6 +367,23 @@ router.post("/check_new_version", (req, res) => {
 });
 
 var currentVersion = "1.0";
+
+function uploadFile(file) {
+    const newNameFile = new Date().toISOString() + file.originalname;
+        const blob = bucket.file(newNameFile);
+        const blobStream = blob.createWriteStream({
+        metadata: {
+            contentType: file.mimetype,
+        },
+    });
+    const publicUrl =
+        `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURI(blob.name)}?alt=media`;
+    return new Promise((resolve, reject) => {
+
+        blobStream.on('error', reject);
+        blobStream.end(file.buffer, resolve({url: publicUrl}));
+    });
+}
 
 function random4digit() {
   return Math.floor(Math.random() * 9000) + 1000;
