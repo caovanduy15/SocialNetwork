@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const config = require('config');
 const User = require('../models/User');
 
 module.exports = function(req, res, next) {
@@ -10,7 +9,7 @@ module.exports = function(req, res, next) {
       });
 
     try {
-        const verified = jwt.verify(token, config.get('jwtSecret'));
+        const verified = jwt.verify(token, process.env.jwtSecret);
         User.findById(verified.id , (err, user) => {
             if (err) throw err;
             if (user.dateLogin) {
@@ -31,7 +30,7 @@ module.exports = function(req, res, next) {
                     message: "User has logout"
                   });
             }
-            
+
         })
 
     } catch (err) {

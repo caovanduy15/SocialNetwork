@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const config = require('config');
 const validInput = require('../utils/validInput');
 const verify = require('../utils/verifyToken');
 
@@ -14,13 +13,16 @@ const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
 // Create new storage instance with Firebase project credentials
 
 const storage = new Storage({
-    projectId: config.get("GCLOUD_PROJECT_ID"),
-    keyFilename: config.get("GCLOUD_APPLICATION_CREDENTIALS"),
+    projectId: process.env.GCLOUD_PROJECT_ID,
+    credentials: {
+        private_key: process.env.private_key,
+        client_email: process.env.client_email
+    }
 });
 
 // Create a bucket associated to Firebase storage bucket
 const bucket =
-    storage.bucket(config.get("GCLOUD_STORAGE_BUCKET_URL"));
+    storage.bucket(process.env.GCLOUD_STORAGE_BUCKET_URL);
 
 // Initiating a memory storage engine to store files as Buffer objects
 const uploader = multer({
@@ -176,7 +178,7 @@ router.post('/login', (req, res) => {
             .then(loginUser => {
               jwt.sign(
                 { id: loginUser.id, dateLogin: loginUser.dateLogin },
-                config.get('jwtSecret'),
+                process.env.jwtSecret,
                 { expiresIn: 86400 },
                 (err, token) => {
                   if (err) throw err;
@@ -210,7 +212,7 @@ router.post("/change_password", (req, res) => {
     if (!validInput.checkUserPassword(newPassword)) {
       return res.status(400).json({ code: 1004, message: "New password is invalid" });
     }
-    jwt.verify(token, config.get('jwtSecret'), (err, user) => {
+    jwt.verify(token, process.env.jwtSecret, (err, user) => {
 
       // not valid token
       if (("undefined" === typeof (user))) {
@@ -244,7 +246,7 @@ router.post("/logout", (req, res) => {
 
   // no token
   if (!token) return res.status(400).json({ code: 1004, message: "not correct parameter!" });
-  jwt.verify(token, config.get('jwtSecret'), (err, user) => {
+  jwt.verify(token, process.env.jwtSecret, (err, user) => {
 
     // not valid token
     if (("undefined" === typeof (user))) {
@@ -265,7 +267,7 @@ router.post("/set_devtoken", (req, res) => {
     var { token, devtype, devtoken} = req.body;
     if (!token || !devtype || !devtoken)
         return res.status(400).json({ code: 1004, message: "Please enter all fields" });
-    jwt.verify(token, config.get('jwtSecret'), (err, user) => {
+    jwt.verify(token, process.env.jwtSecret, (err, user) => {
 
       // not valid token
       if (("undefined" === typeof (user))) {
@@ -331,7 +333,7 @@ router.post("/check_new_version", (req, res) => {
     var { token, lastUpdate } = req.body;
     if (!token || !lastUpdate)
         return res.status(400).json({ code: 1004, message: "Please enter all fields" });
-    jwt.verify(token, config.get('jwtSecret'), (err, user) => {
+    jwt.verify(token, process.env.jwtSecret, (err, user) => {
 
       // not valid token
       if (("undefined" === typeof (user))) {

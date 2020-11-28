@@ -1,7 +1,0 @@
-{   
-    "mongoURI": "mongodb+srv://nguyenlm:YPCZUmLxE3sgPqh@cluster0.dwryo.mongodb.net/social_network?retryWrites=true&w=majority",
-    "jwtSecret": "social_network_secret",
-    "GCLOUD_PROJECT_ID": "test-88cb8",
-    "GCLOUD_APPLICATION_CREDENTIALS": "config/myprivatekey.json",
-    "GCLOUD_STORAGE_BUCKET_URL": "gs://test-88cb8.appspot.com"
-}

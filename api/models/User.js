@@ -46,6 +46,15 @@ const UserSchema = new Schema({
         type: Date
       }
     }],
+    blockedList: [{
+      user: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
+      },
+      createdAt: {
+        type: Date
+      }
+    }],
     friendRequestReceived: [{
       fromUser: {
         type: Schema.Types.ObjectId,
