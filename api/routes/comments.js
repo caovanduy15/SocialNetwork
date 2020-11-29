@@ -72,7 +72,7 @@ router.post('/set_comment', verify, async (req, res) => {
                 poster: {
                     id: poster._id,
                     name: poster.name,
-                    avatar: null
+                    avatar: poster.avatar
                 }
             },
             is_blocked: null
@@ -97,7 +97,7 @@ router.post('/set_comment', verify, async (req, res) => {
 // @desc   add new comment
 // @access Public
 router.post('/get_comment', verify, async (req, res) => {
-    if(!req.body.id || !req.body.index || !req.body.count) {
+    if(!req.body.id || (req.body.index !== 0 && !req.body.index) || (req.body.count !== 0 && !req.body.count)) {
         console.log("No have parameter id, index, count");
         return res.status(500).send({
             code: 1002,
@@ -138,7 +138,7 @@ router.post('/get_comment', verify, async (req, res) => {
                     poster: {
                         id: comment.poster._id,
                         name: comment.poster.name,
-                        avatar: null
+                        avatar: comment.poster.avatar
                     },
                     is_blocked: null
                 };

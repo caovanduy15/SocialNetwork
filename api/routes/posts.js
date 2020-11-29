@@ -31,11 +31,11 @@ function countWord(str) {
     return str.split(" ").length;
 }
 
-// @route  POST it4788/post/get_list/posts
-// @desc   get list posts
+// @route  POST it4788/post/get_list_videos
+// @desc   get list videos
 // @access Public
-router.post('/get_list_posts', verify, async (req, res) => {
-    if(!req.body.index || !req.body.count) {
+router.post('/get_list_videos', verify, async (req, res) => {
+    if((req.body.index !== 0 && !req.body.index) || (req.body.count !== 0 && !req.body.count)) {
         console.log("No have parameter index, count");
         return res.status(500).send({
             code: 1002,
@@ -43,11 +43,26 @@ router.post('/get_list_posts', verify, async (req, res) => {
         });
     }
 
-    const posts = await Post.find().populate('author').sort("-created");
+    const posts = await Post.find({"video.url": { $ne: undefined }}).populate('author').sort("-created");
 
-    let slicePosts = posts.slice(req.body.index, parseInt(req.body.index, 10) + parseInt(req.body.count, 10));
+    if(posts.length < 1) {
+        console.log('No have posts');
+        return res.status(500).send({
+            code: 9994,
+            message: "No data or end of list data"
+        });
+    }
 
-    if(!posts || slicePosts.length < 1) {
+    let index_last_id = posts.findIndex((element) => {return element._id == req.body.last_id});
+    let last_id = req.body.last_id;
+    if(index_last_id == -1) {
+        last_id = posts[0]._id;
+        index_last_id = 0;
+    }
+
+    let slicePosts = posts.slice(index_last_id + req.body.index, index_last_id + parseInt(req.body.index, 10) + parseInt(req.body.count, 10));
+
+    if(slicePosts.length < 1) {
         console.log('No have posts');
         return res.status(500).send({
             code: 9994,
@@ -58,24 +73,96 @@ router.post('/get_list_posts', verify, async (req, res) => {
     res.status(200).send({
                     code: 1000,
                     message: "OK",
-                    data: slicePosts.map(post => {
-                        return {
-                            id: post._id,
-                            described: post.described,
-                            created: post.created,
-                            modified: post.modified,
-                            like: post.likedUser.length,
-                            comment: post.comments.length,
-                            is_liked: post.likedUser.includes(req.user.id),
-                            image: post.image.map(image => { return {id: image._id, url: image.url};}),
-                            video: post.video,
-                            author: {
-                                id: post.author._id,
-                                name: post.author.name
-                            },
-                            state: post.state
-                        }
-                    })
+                    data: {
+                            post: slicePosts.map(post => {
+                            return {
+                                id: post._id,
+                                described: post.described,
+                                created: post.created,
+                                modified: post.modified,
+                                like: post.likedUser.length,
+                                comment: post.comments.length,
+                                is_liked: post.likedUser.includes(req.user.id),
+                                video: post.video,
+                                author: {
+                                    id: post.author._id,
+                                    name: post.author.name,
+                                    avatar: post.author.avatar
+                                },
+                                state: post.state
+                            }
+                        }),
+                        new_items: index_last_id,
+                        last_id: last_id
+                    }
+                  });
+});
+
+// @route  POST it4788/post/get_list_posts
+// @desc   get list posts
+// @access Public
+router.post('/get_list_posts', verify, async (req, res) => {
+    if((req.body.index !== 0 && !req.body.index) || (req.body.count !== 0 && !req.body.count)) {
+        console.log("No have parameter index, count");
+        return res.status(500).send({
+            code: 1002,
+            message: "Parameter is not enought"
+        });
+    }
+
+    const posts = await Post.find().populate('author').sort("-created");
+
+    if(posts.length < 1) {
+        console.log('No have posts');
+        return res.status(500).send({
+            code: 9994,
+            message: "No data or end of list data"
+        });
+    }
+
+    let index_last_id = posts.findIndex((element) => {return element._id == req.body.last_id});
+    let last_id = req.body.last_id;
+    if(index_last_id == -1) {
+        last_id = posts[0]._id;
+        index_last_id = 0;
+    }
+
+    let slicePosts = posts.slice(index_last_id + req.body.index, index_last_id + parseInt(req.body.index, 10) + parseInt(req.body.count, 10));
+
+    if(slicePosts.length < 1) {
+        console.log('No have posts');
+        return res.status(500).send({
+            code: 9994,
+            message: "No data or end of list data"
+        });
+    }
+
+    res.status(200).send({
+                    code: 1000,
+                    message: "OK",
+                    data: {
+                            posts: slicePosts.map(post => {
+                            return {
+                                id: post._id,
+                                described: post.described,
+                                created: post.created,
+                                modified: post.modified,
+                                like: post.likedUser.length,
+                                comment: post.comments.length,
+                                is_liked: post.likedUser.includes(req.user.id),
+                                image: post.image.map(image => { return {id: image._id, url: image.url};}),
+                                video: post.video,
+                                author: {
+                                    id: post.author._id,
+                                    name: post.author.name,
+                                    avatar: post.author.avatar
+                                },
+                                state: post.state
+                            }
+                        }),
+                        new_items: index_last_id,
+                        last_id: last_id
+                    }
                   });
 });
 
@@ -112,7 +199,8 @@ router.post('/get_post', verify, (req, res, next) => {
                         video: post.video,
                         author: {
                             id: post.author._id,
-                            name: post.author.name
+                            name: post.author.name,
+                            avatar: post.author.avatar
                         },
                         state: post.state
                     }
@@ -334,23 +422,70 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
 // @route  POST it4788/post/delete_post
 // @desc   delete a post
 // @access Public
-router.delete('/delete_post', verify, (req, res) => {
+router.delete('/delete_post', verify, async (req, res) => {
     var { id } = req.body;
-    if (!id) return res.status(400).json({code:1002, message: "not enough param"});
+    if (!id) {
+        console.log("No have parameter id");
+        return res.status(500).send({
+            code: 1002,
+            message: "Parameter is not enought"
+        });
+    }
     var user = req.user;
-    Post.findById(id).populate('author').exec( (err, post) => {
-        if (!post) return res.status(400).json({code: 1004, message: "Not found post"})
-        console.log(post.author._id);
-        console.log(user.id);
-        if (! post.author._id == user.id) {
-            res.status(400).json({code: 1009, message: "not access because user not owner of post"})
-        } else {
-            // update data
-            Post.deleteOne(post)
-                .then(() => res.status(200).json({code: 1000, message: "OK"}))
-                .catch(err => res.json({code: 1005, message: "Unknown Error"}));
+    let post;
+    try {
+        post = await Post.findById(id);
+    } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return res.status(500).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
         }
-    })
+        console.log("Can not connect to DB");
+        return res.status(500).send({
+            code: 1001,
+            message: "Can not connect to DB"
+        });
+    }
+
+    if (!post) {
+        console.log("Post is not existed");
+        return res.status(404).send({
+            code: 9992,
+            message: "Post is not existed"
+        });
+    }
+
+    if(post.author != user.id) {
+        console.log("Not Access");
+        return res.status(403).send({
+            code: 1009,
+            message: "Not Access"
+        });
+    }
+
+    try {
+        const deletedPost = await Post.findByIdAndDelete(id);
+        return res.status(200).send({
+            code: 1000,
+            message: "OK"
+        });
+    } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return res.status(500).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
+        }
+        console.log("Can not connect to DB");
+        return res.status(500).send({
+            code: 1001,
+            message: "Can not connect to DB"
+        });
+    }
 })
 
 
