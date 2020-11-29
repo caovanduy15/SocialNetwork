@@ -294,6 +294,34 @@ router.post('/set_accept_friend', verify, async (req, res) => {
 //   "index": 4,
 //   "count": 10
 // }
+router.post("/get_list_blocks", verify, async(req, res) => {
+    let { token, index, count } = req.body;
+    let id = req.user.id;
+    let code, message;
+    let data = [];
+    let targetUser;
+    if (!token || !index || !count){
+        code = 1002;
+        message = "Please enter all fields";
+    }
+    targetUser = await User.findById(id);
+    let endFor = targetUser.blockedList.length < index + count ? targetUser.blockedList.length : index + count;
+    for (let i = index; i < endFor; i++) {
+        let x = targetUser.blockedList[i];
+        let userInfo = {
+            id: null, // id of this guy
+            username: null,
+            avatar: null,
+        }
+        userInfo.id = x.user._id.toString();
+        userInfo.username = x.user.name;
+        userInfo.avatar = x.user.avatar;
+        data.push(userInfo);
+    }
+    code = 1000;
+    message = "Successfully get block list";
+    res.json({ code, message, data});
+});
 router.post('/get_user_friends', verify, async (req, res) => {
   // input
   let { user_id, token, index, count } = req.body;
