@@ -35,7 +35,7 @@ function countWord(str) {
 // @desc   get list posts
 // @access Public
 router.post('/get_list_posts', verify, async (req, res) => {
-    if((req.body.index !== 0 || req.body.count !== 0) && (!req.body.index || !req.body.count)) {
+    if(!req.body.index || !req.body.count) {
         console.log("No have parameter index, count");
         return res.status(500).send({
             code: 1002,
@@ -45,7 +45,9 @@ router.post('/get_list_posts', verify, async (req, res) => {
 
     const posts = await Post.find().populate('author').sort("-created");
 
-    if(!posts) {
+    let slicePosts = posts.slice(req.body.index, parseInt(req.body.index, 10) + parseInt(req.body.count, 10));
+
+    if(!posts || slicePosts.length < 1) {
         console.log('No have posts');
         return res.status(500).send({
             code: 9994,
@@ -56,7 +58,7 @@ router.post('/get_list_posts', verify, async (req, res) => {
     res.status(200).send({
                     code: 1000,
                     message: "OK",
-                    data: posts.map(post => {
+                    data: slicePosts.map(post => {
                         return {
                             id: post._id,
                             described: post.described,
