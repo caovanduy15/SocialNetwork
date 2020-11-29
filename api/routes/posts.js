@@ -89,7 +89,7 @@ router.post('/get_list_videos', verify, async (req, res) => {
                                     name: post.author.name,
                                     avatar: post.author.avatar
                                 },
-                                state: post.state
+                                status: post.status
                             }
                         }),
                         new_items: index_last_id,
@@ -157,7 +157,7 @@ router.post('/get_list_posts', verify, async (req, res) => {
                                     name: post.author.name,
                                     avatar: post.author.avatar
                                 },
-                                state: post.state
+                                status: post.status
                             }
                         }),
                         new_items: index_last_id,
@@ -202,7 +202,7 @@ router.post('/get_post', verify, (req, res, next) => {
                             name: post.author.name,
                             avatar: post.author.avatar
                         },
-                        state: post.state
+                        status: post.status
                     }
                   });
             } else {
@@ -422,7 +422,7 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
 // @route  POST it4788/post/delete_post
 // @desc   delete a post
 // @access Public
-router.delete('/delete_post', verify, async (req, res) => {
+router.post('/delete_post', verify, async (req, res) => {
     var { id } = req.body;
     if (!id) {
         console.log("No have parameter id");
@@ -492,25 +492,243 @@ router.delete('/delete_post', verify, async (req, res) => {
 // @route  POST it4788/post/edit_post
 // @desc   edit an existing post
 // @access Public
-router.put('/edit_post', verify, (req, res) => {
-    var { id, status, image, image_del, image_sort, video, described, auto_accept, auto_block } = req.body;
-    if (!id) return res.status(400).json({code:1002, message: "not enough param"});
+router.post('/edit_post', cpUpload, verify, async (req, res) => {
+    var { id, status, image_del, image_sort, described, auto_accept, auto_block } = req.body;
+    if(image_del) {
+        image_del = JSON.parse(image_del);
+        console.log(image_del);
+    } else {
+        image_del = [];
+    }
+
+    if (!id) {
+        console.log("No have parameter id");
+        return res.status(400).send({
+            code: 1002,
+            message: "Parameter is not enought"
+        });
+    }
+
+    if(req.files.image && req.files.video) {
+        console.log("Have image and video gui di");
+        return res.status(500).send({
+            code: 1003,
+            message: "Parameter type is invalid"
+        });
+    }
+
     var user = req.user;
-    Post.findById(id).populate('author').exec( (err, post) => {
-        if (!post) return res.status(400).json({code: 1004, message: "Not found post"})
-        console.log(post.author._id);
-        console.log(user.id);
-        if (! post.author._id == user.id) {
-            res.status(400).json({code: 1009, message: "not access because user not owner of post"})
-        } else {
-            // update data
-            post.status = status;
-            post.described = described;
-            post.save()
-                .then(() => res.status(200).json({code: 1000, message: "OK"}))
-                .catch(err => res.json({code: 1005, message: "Unknown Error"}));
+
+    let post;
+    try {
+        post = await Post.findById(id);
+    } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return res.status(500).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
         }
-    })
+        console.log("Can not connect to DB");
+        return res.status(500).send({
+            code: 1001,
+            message: "Can not connect to DB"
+        });
+    }
+
+    if (!post) {
+        console.log("Post is not existed");
+        return res.status(404).send({
+            code: 9992,
+            message: "Post is not existed"
+        });
+    }
+
+    if(post.author != user.id) {
+        console.log("Not Access");
+        return res.status(403).send({
+            code: 1009,
+            message: "Not Access"
+        });
+    }
+
+    if(image_del.length > 0) {
+        for(const id_image_del of image_del) {
+            let isInvalid = true;
+            for(const image of post.image) {
+                if(image.id == id_image_del) {
+                    isInvalid = false;
+                }
+            }
+            if(isInvalid) {
+                console.log("Sai id");
+                return res.status(500).send({
+                    code: 1004,
+                    message: "Parameter value is invalid"
+                });
+            }
+        }
+    }
+
+    let promise, file;
+
+    if(req.files.video && !req.file.image) {
+        if(post.image.length > 0) {
+            console.log("Have image and video up video");
+            return res.status(500).send({
+                code: 1003,
+                message: "Parameter type is invalid"
+            });
+        }
+
+        if(req.files.video.length > MAX_VIDEO_NUMBER) {
+            console.log("MAX_VIDEO_NUMBER");
+            return res.status(500).send({
+                code: 1008,
+                message: "Maximum number of video"
+            });
+        }
+
+        for(const video of req.files.video) {
+            const filetypes = /mp4/;
+            const mimetype = filetypes.test(video.mimetype);
+            if(!mimetype) {
+                console.log("Mimetype video is invalid");
+                return res.status(500).send({
+                    code: 1003,
+                    message: "Parameter type is invalid"
+                });
+            }
+
+            if (video.buffer.byteLength > MAX_SIZE_VIDEO) {
+                console.log("Max video file size");
+                return res.status(500).send({
+                    code: 1008,
+                    message: "File size is too big"
+                });
+            }
+        }
+
+        promises = req.files.video.map(video => {
+            return uploadFile(video);
+        });
+        try {
+            file = await Promise.all(promises);
+            post.video.url = file[0].url;
+        } catch (err) {
+            console.log("Upload fail");
+            return res.status(500).send({
+                code: 1001,
+                message: "Can not connect to DB"
+            });
+        }
+    }
+
+    if(req.files.image && !req.files.video) {
+        if(post.video.url && req.files.image.length + post.image.length - image_del.length > 0) {
+            console.log("Have image and video up anh");
+            return res.status(500).send({
+                code: 1003,
+                message: "Parameter type is invalid"
+            });
+        }
+        if(req.files.image.length + post.image.length - image_del.length > MAX_IMAGE_NUMBER) {
+            console.log("Max image number");
+            return res.status(500).send({
+                code: 1008,
+                message: "Maximum number of images"
+            });
+        }
+        for(const image of req.files.image) {
+            const filetypes = /jpeg|jpg|png/;
+            const mimetype = filetypes.test(image.mimetype);
+            if(!mimetype) {
+                console.log("Mimetype image is invalid");
+                return res.status(500).send({
+                    code: 1003,
+                    message: "Parameter type is invalid"
+                });
+            }
+
+            if (image.buffer.byteLength > MAX_SIZE_IMAGE) {
+                console.log("Max image file size");
+                return res.status(500).send({
+                    code: 1008,
+                    message: "File size is too big"
+                });
+            }
+        }
+
+        if(image_del.length > 0) {
+            for(const id_image_del of image_del) {
+                console.log("xoa anh");
+                var i;
+                for(i=0; i < post.image.length; i++) {
+                    if(post.image[i]._id == id_image_del) {
+                        break;
+                    }
+                }
+                post.image.splice(i, 1);
+            }
+        }
+
+        promises = req.files.image.map(image => {
+            return uploadFile(image);
+        });
+
+        try {
+            file = await Promise.all(promises);
+            for(file_item of file) {
+                post.image.push(file_item);
+            }
+        } catch (err) {
+            console.log("Upload fail");
+            return res.status(500).send({
+                code: 1001,
+                message: "Can not connect to DB"
+            });
+        }
+    }
+
+    if(described) {
+        console.log("Have described");
+        if(countWord(described) > MAX_WORD_POST) {
+            console.log("MAX_WORD_POST");
+            return res.status(400).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
+        }
+        post.described = described;
+    } else {
+        console.log("No described");
+    }
+
+    if(status) {
+        console.log("Have status");
+        post.status = status;
+    } else {
+        console.log("No status");
+    }
+
+    try {
+        const savedPost = await post.save();
+        return res.status(200).send({
+            code: 1000,
+            message: "OK",
+            data: {
+                id: id,
+                url: null
+            }
+        });
+    } catch (err) {
+        console.log("Edit fail");
+        return res.status(500).send({
+            code: 1001,
+            message: "Can not connect to DB"
+        });
+    }
 })
 
 module.exports = router;
