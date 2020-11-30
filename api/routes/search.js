@@ -3,7 +3,6 @@ const Post = require('../models/Post');
 const Search = require('../models/Search');
 const verify = require('../utils/verifyToken');
 const removeAccents  = require('../utils/removeAccents');
-const { TokenExpiredError } = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
 
 
