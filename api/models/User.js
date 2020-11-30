@@ -68,8 +68,32 @@ const UserSchema = new Schema({
     friendRequestSent: [{
       type: Schema.Types.ObjectId,
       ref: 'users',
-    }]
-
+    }],
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    description: {
+      type: String,
+      default: "chưa có mô tả"
+    },
+    coverImage: {
+        url: {
+          type: String
+      }
+    },
+    address: {
+      type: String
+    },
+    city: { 
+      type: String
+    },
+    country: {
+      type: String
+    },
+    link: {
+      type: String
+    }
 })
 
 module.exports = User = mongoose.model('users', UserSchema);
