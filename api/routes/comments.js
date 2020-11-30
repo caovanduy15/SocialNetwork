@@ -55,10 +55,10 @@ router.post('/set_comment', verify, async (req, res) => {
 
         // Save comment
         const savedComment = await comment.save();
-        if(post.comments.length > 0) {
-            post.comments.push(savedComment._id);
-        } else {
+        if(!post.comments || post.comments.length < 1) {
             post.comments = [savedComment._id];
+        } else {
+            post.comments.push(savedComment._id);
         }
         const updatedPost = await post.save();
 

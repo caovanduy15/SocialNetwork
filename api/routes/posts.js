@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const Post = require('../models/Post');
+const Report_Post = require('../models/Report_Post');
 const verify = require('../utils/verifyToken');
 var multer  = require('multer');
 const { Storage } = require('@google-cloud/storage');
@@ -724,6 +725,75 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
         });
     } catch (err) {
         console.log("Edit fail");
+        return res.status(500).send({
+            code: 1001,
+            message: "Can not connect to DB"
+        });
+    }
+})
+
+// @route  POST it4788/post/report_post
+// @desc   report post
+// @access Public
+router.post('/report_post', verify, async (req, res) => {
+    var {id, subject, details} = req.body;
+    if(!id || !subject || !details) {
+        console.log("No have parameter id, subject, details");
+        return res.status(400).send({
+            code: 1002,
+            message: "Parameter is not enought"
+        });
+    }
+
+    var user = req.user;
+
+    let post;
+    try {
+        post = await Post.findById(id);
+    } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return res.status(500).send({
+                code: 1004,
+                message: "Parameter value is invalid"
+            });
+        }
+        console.log("Can not connect to DB");
+        return res.status(500).send({
+            code: 1001,
+            message: "Can not connect to DB"
+        });
+    }
+
+    if (!post) {
+        console.log("Post is not existed");
+        return res.status(404).send({
+            code: 9992,
+            message: "Post is not existed"
+        });
+    }
+
+    const reportPost = new Report_Post({
+        subject: subject,
+        details: details,
+        reporter: user.id
+    });
+
+    try {
+        const savedReportPost = await reportPost.save();
+        if(!post.reports_post || post.reports_post.length < 1) {
+            post.reports_post = [savedReportPost._id];
+        } else {
+            post.reports_post.push(savedReportPost._id);
+        }
+        const savedPost = await post.save();
+        return res.status(200).send({
+            code: 1000,
+            message: "OK"
+        });
+    } catch (err) {
+        console.log(err);
+        console.log("Can not connect to DB");
         return res.status(500).send({
             code: 1001,
             message: "Can not connect to DB"

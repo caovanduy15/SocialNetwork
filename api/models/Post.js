@@ -51,6 +51,10 @@ const postSchema = new Schema({
         url: {
             type: String
         }
-    }
+    },
+    reports_post: [{
+        type: Schema.Types.ObjectId,
+        ref: 'reports_post'
+    }]
 });
 module.exports = mongoose.model('posts', postSchema);
