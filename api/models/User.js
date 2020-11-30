@@ -14,6 +14,11 @@ const UserSchema = new Schema({
     dateLogin: {
         type: Date
     },
+    avatar: {
+        url: {
+            type: String
+        }
+    },
     password: {
         type: String,
         required: true,
@@ -34,6 +39,15 @@ const UserSchema = new Schema({
     },
     friends: [{
       friend: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
+      },
+      createdAt: {
+        type: Date
+      }
+    }],
+    blockedList: [{
+      user: {
         type: Schema.Types.ObjectId,
         ref: 'users',
       },

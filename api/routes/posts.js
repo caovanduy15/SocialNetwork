@@ -1,4 +1,3 @@
-const config = require("config");
 const router = require('express').Router();
 const Post = require('../models/Post');
 const verify = require('../utils/verifyToken');
@@ -12,13 +11,16 @@ const MAX_WORD_POST = 500;
 
 // Create new storage instance with Firebase project credentials
 const storage = new Storage({
-    projectId: config.get("GCLOUD_PROJECT_ID"),
-    keyFilename: config.get("GCLOUD_APPLICATION_CREDENTIALS"),
+    projectId: process.env.GCLOUD_PROJECT_ID,
+    credentials: {
+        private_key: process.env.private_key,
+        client_email: process.env.client_email
+    }
 });
 
 // Create a bucket associated to Firebase storage bucket
 const bucket =
-    storage.bucket(config.get("GCLOUD_STORAGE_BUCKET_URL"));
+    storage.bucket(process.env.GCLOUD_STORAGE_BUCKET_URL);
 
 // Initiating a memory storage engine to store files as Buffer objects
 const uploader = multer({

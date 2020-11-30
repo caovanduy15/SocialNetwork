@@ -12,10 +12,10 @@ const verify = require('../utils/verifyToken');
 // index : last addElement
 // count: length of data
 // -------------------------
-// BODY: 
+// BODY:
 // {
 //   "token": "xxxxx",
-//   "index": 3, 
+//   "index": 3,
 //   "count": 10
 // }
 router.post('/get_requested_friends', verify, async (req, res) => {
@@ -79,7 +79,7 @@ router.post('/get_requested_friends', verify, async (req, res) => {
 // @access Public
 // Example: Use Postman
 // URL: http://127.0.0.1:5000/it4788/friend/set_request_friend
-// BODY: 
+// BODY:
 // {
 //   "token": "xxxxx",
 //   "user_id" : "gh98082"
@@ -153,12 +153,63 @@ router.post('/set_request_friend', verify, async (req, res) => {
 // @access Public
 // Example: Use Postman
 // URL: http://127.0.0.1:5000/it4788/friend/set_accept_friend
-// BODY: 
+// BODY:
 // {
 //   "token": "xxxxx",
 //   "user_id" : "gh98082",
 //   "is_accept": 0,
 // }
+
+router.post("/set_block", verify, async(req, res) => {
+    let code, message;
+    let thisUser, targetUser;
+
+    let { token, user_id, type } = req.body;
+    let id = req.user.id;
+    if (!token || !user_id || !type){
+        code = 1002;
+        message = "Please enter all fields";
+    }
+    if (user_id == id){
+        code = 1004;
+        message = "Can't block yourself";
+    }
+    thisUser = await User.findById(id);
+    targetUser = await User.findById(user_id);
+    if (!targetUser){
+        code = 9995;
+        message = "User not existed";
+    }
+    else{
+        let index = thisUser.blockedList.findIndex(element => element.user._id.equals(targetUser._id));
+        if (index < 0) {
+            if (type == 1){
+                thisUser.blockedList.push({ user: targetUser._id, createdAt: Date.now() });
+                thisUser.save();
+                code = 1000;
+                message = "Successfully blocked this user";
+            }
+            else{
+                code = 1004;
+                message = "You have already blocked this user";
+            }
+        }
+        else{
+            if (type == 0){
+                thisUser.blockedList.splice(index, 1);
+                thisUser.save();
+                code = 1000;
+                message = "Successfully unblocked this user";
+            }
+            else{
+                code = 1004;
+                message = "You haven't blocked this user";
+            }
+        }
+    }
+    res.json({ code, message });
+});
+
 router.post('/set_accept_friend', verify, async (req, res) => {
   let code, message;
   let thisUser, sentUser;
@@ -198,12 +249,12 @@ router.post('/set_accept_friend', verify, async (req, res) => {
           element.fromUser._id.equals(sentUser._id));
         thisUser.friendRequestReceived.splice(indexExist, 1);
 
-        // thêm bạn bên nhận 
+        // thêm bạn bên nhận
         let indexExist2 = thisUser.friends.findIndex(element =>
           element.friend._id.equals(sentUser._id))
         if (indexExist2 < 0) thisUser.friends.push({ friend: sentUser._id, createdAt: currentTime });
 
-        // thêm bạn bên gửi 
+        // thêm bạn bên gửi
         let indexExist3 = sentUser.friends.findIndex(element =>
           element.friend._id.equals(thisUser._id))
         if (indexExist3 < 0) sentUser.friends.push({ friend: thisUser._id, createdAt: currentTime });
@@ -236,15 +287,43 @@ router.post('/set_accept_friend', verify, async (req, res) => {
 // @access Public
 // Example: Use Postman
 // URL: http://127.0.0.1:5000/it4788/friend/get_user_friends
-// BODY: 
+// BODY:
 // {
 //   "token": "xxxxx",
 //   "user_id" : "gh98082",
 //   "index": 4,
 //   "count": 10
 // }
+router.post("/get_list_blocks", verify, async(req, res) => {
+    let { token, index, count } = req.body;
+    let id = req.user.id;
+    let code, message;
+    let data = [];
+    let targetUser;
+    if (!token || !index || !count){
+        code = 1002;
+        message = "Please enter all fields";
+    }
+    targetUser = await User.findById(id);
+    let endFor = targetUser.blockedList.length < index + count ? targetUser.blockedList.length : index + count;
+    for (let i = index; i < endFor; i++) {
+        let x = targetUser.blockedList[i];
+        let userInfo = {
+            id: null, // id of this guy
+            username: null,
+            avatar: null,
+        }
+        userInfo.id = x.user._id.toString();
+        userInfo.username = x.user.name;
+        userInfo.avatar = x.user.avatar;
+        data.push(userInfo);
+    }
+    code = 1000;
+    message = "Successfully get block list";
+    res.json({ code, message, data});
+});
 router.post('/get_user_friends', verify, async (req, res) => {
-  // input 
+  // input
   let { user_id, token, index, count } = req.body;
   // user id from token
   let id = req.user.id;
