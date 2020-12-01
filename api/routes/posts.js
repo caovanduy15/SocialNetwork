@@ -2,8 +2,10 @@ const router = require('express').Router();
 const Post = require('../models/Post');
 const Report_Post = require('../models/Report_Post');
 const verify = require('../utils/verifyToken');
+const {getUserIDFromToken} = require('../utils/getUserIDFromToken');
 var multer  = require('multer');
 const { Storage } = require('@google-cloud/storage');
+var {responseError, setAndSendResponse} = require('../response/error');
 const MAX_IMAGE_NUMBER = 4;
 const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
 const MAX_VIDEO_NUMBER = 1;
@@ -35,204 +37,269 @@ function countWord(str) {
 // @route  POST it4788/post/get_list_videos
 // @desc   get list videos
 // @access Public
-router.post('/get_list_videos', verify, async (req, res) => {
-    if((req.body.index !== 0 && !req.body.index) || (req.body.count !== 0 && !req.body.count)) {
+/*
+Da check:
+PARAMETER_IS_NOT_ENOUGH cua index, count
+PARAMETER_TYPE_IS_INVALID cua index, count, last_id, token
+PARAMETER_VALUE_IS_INVALID cua index, count
+NO_DATA_OR_END_OF_LIST_DATA
+Token co the co hoac khong
+CAN_NOT_CONNECT_TO_DB neu get post loi
+*/
+router.post('/get_list_videos', async (req, res) => {
+    var {token, index, count, last_id} = req.body;
+    var data;
+    // PARAMETER_IS_NOT_ENOUGH
+    if((index !== 0 && !index) || (count !== 0 && !count)) {
         console.log("No have parameter index, count");
-        return res.status(500).send({
-            code: 1002,
-            message: "Parameter is not enought"
-        });
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
     }
 
-    const posts = await Post.find({"video.url": { $ne: undefined }}).populate('author').sort("-created");
+    // PARAMETER_TYPE_IS_INVALID
+    if((index && typeof index !== "string") || (count && typeof count !== "string") || (last_id && typeof last_id !== "string")
+        || (token && typeof token !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
 
+    index = parseInt(index, 10);
+    count = parseInt(count, 10);
+    if(isNaN(index) || isNaN(count)) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    var user, posts;
+    try {
+        user = await getUserIDFromToken(token);
+        posts = await Post.find({"video.url": { $ne: undefined }}).populate('author').sort("-created");
+    } catch (err) {
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+    }
+
+    // NO_DATA_OR_END_OF_LIST_DATA
     if(posts.length < 1) {
         console.log('No have posts');
-        return res.status(500).send({
-            code: 9994,
-            message: "No data or end of list data"
-        });
+        return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
     }
 
-    let index_last_id = posts.findIndex((element) => {return element._id == req.body.last_id});
-    let last_id = req.body.last_id;
+    let index_last_id = posts.findIndex((element) => {return element._id == last_id});
     if(index_last_id == -1) {
         last_id = posts[0]._id;
         index_last_id = 0;
     }
 
-    let slicePosts = posts.slice(index_last_id + req.body.index, index_last_id + parseInt(req.body.index, 10) + parseInt(req.body.count, 10));
+    let slicePosts = posts.slice(index_last_id + index, index_last_id + index + count);
 
+    // NO_DATA_OR_END_OF_LIST_DATA
     if(slicePosts.length < 1) {
         console.log('No have posts');
-        return res.status(500).send({
-            code: 9994,
-            message: "No data or end of list data"
-        });
+        return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
+    }
+
+    data = {
+        post: slicePosts.map(post => {
+            return {
+                id: post._id,
+                video: {
+                    url: post.video.url,
+                    thumb: post.video.url ? "null": undefined
+                },
+                described: post.described,
+                created: post.created.toString(),
+                modified: post.modified.toString(),
+                like: post.likedUser.length.toString(),
+                comment: post.comments.length.toString(),
+                is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                state: post.status,
+                author: {
+                    id: post.author._id,
+                    username: post.author.name,
+                    avatar: post.author.avatar
+                }
+            }
+        }),
+        new_items: index_last_id.toString(),
+        last_id: last_id
     }
 
     res.status(200).send({
-                    code: 1000,
-                    message: "OK",
-                    data: {
-                            post: slicePosts.map(post => {
-                            return {
-                                id: post._id,
-                                described: post.described,
-                                created: post.created,
-                                modified: post.modified,
-                                like: post.likedUser.length,
-                                comment: post.comments.length,
-                                is_liked: post.likedUser.includes(req.user.id),
-                                video: post.video,
-                                author: {
-                                    id: post.author._id,
-                                    name: post.author.name,
-                                    avatar: post.author.avatar
-                                },
-                                status: post.status
-                            }
-                        }),
-                        new_items: index_last_id,
-                        last_id: last_id
-                    }
-                  });
+                        code: "1000",
+                        message: "OK",
+                        data: data
+                    });
 });
 
 // @route  POST it4788/post/get_list_posts
 // @desc   get list posts
 // @access Public
-router.post('/get_list_posts', verify, async (req, res) => {
-    if((req.body.index !== 0 && !req.body.index) || (req.body.count !== 0 && !req.body.count)) {
+/*
+Da check:
+PARAMETER_IS_NOT_ENOUGH cua index, count
+PARAMETER_TYPE_IS_INVALID cua index, count, last_id, token
+PARAMETER_VALUE_IS_INVALID cua index, count
+NO_DATA_OR_END_OF_LIST_DATA
+Token co the co hoac khong
+CAN_NOT_CONNECT_TO_DB neu get post loi
+*/
+router.post('/get_list_posts', async (req, res) => {
+    var {token, index, count, last_id} = req.body;
+    var data;
+    // PARAMETER_IS_NOT_ENOUGH
+    if((index !== 0 && !index) || (count !== 0 && !count)) {
         console.log("No have parameter index, count");
-        return res.status(500).send({
-            code: 1002,
-            message: "Parameter is not enought"
-        });
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
     }
 
-    const posts = await Post.find().populate('author').sort("-created");
+    // PARAMETER_TYPE_IS_INVALID
+    if((index && typeof index !== "string") || (count && typeof count !== "string") || (last_id && typeof last_id !== "string")
+        || (token && typeof token !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
 
+    index = parseInt(index, 10);
+    count = parseInt(count, 10);
+    if(isNaN(index) || isNaN(count)) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    var user, posts;
+    try {
+        user = await getUserIDFromToken(token);
+        posts = await Post.find().populate('author').sort("-created");
+    } catch (err) {
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+    }
+
+    // NO_DATA_OR_END_OF_LIST_DATA
     if(posts.length < 1) {
         console.log('No have posts');
-        return res.status(500).send({
-            code: 9994,
-            message: "No data or end of list data"
-        });
+        return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
     }
 
-    let index_last_id = posts.findIndex((element) => {return element._id == req.body.last_id});
-    let last_id = req.body.last_id;
+    let index_last_id = posts.findIndex((element) => {return element._id == last_id});
     if(index_last_id == -1) {
         last_id = posts[0]._id;
         index_last_id = 0;
     }
 
-    let slicePosts = posts.slice(index_last_id + req.body.index, index_last_id + parseInt(req.body.index, 10) + parseInt(req.body.count, 10));
+    let slicePosts = posts.slice(index_last_id + index, index_last_id + index + count);
 
+    // NO_DATA_OR_END_OF_LIST_DATA
     if(slicePosts.length < 1) {
         console.log('No have posts');
-        return res.status(500).send({
-            code: 9994,
-            message: "No data or end of list data"
-        });
+        return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
+    }
+
+    data = {
+        posts: slicePosts.map(post => {
+            return {
+                id: post._id,
+                image: post.image.map(image => { return {id: image._id, url: image.url};}),
+                video: {
+                    url: post.video.url,
+                    thumb: post.video.url ? "null": undefined
+                },
+                described: post.described,
+                created: post.created.toString(),
+                modified: post.modified.toString(),
+                like: post.likedUser.length.toString(),
+                comment: post.comments.length.toString(),
+                is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                state: post.status,
+                author: {
+                    id: post.author._id,
+                    username: post.author.name,
+                    avatar: post.author.avatar
+                }
+            }
+        }),
+        new_items: index_last_id.toString(),
+        last_id: last_id
     }
 
     res.status(200).send({
-                    code: 1000,
-                    message: "OK",
-                    data: {
-                            posts: slicePosts.map(post => {
-                            return {
-                                id: post._id,
-                                described: post.described,
-                                created: post.created,
-                                modified: post.modified,
-                                like: post.likedUser.length,
-                                comment: post.comments.length,
-                                is_liked: post.likedUser.includes(req.user.id),
-                                image: post.image.map(image => { return {id: image._id, url: image.url};}),
-                                video: post.video,
-                                author: {
-                                    id: post.author._id,
-                                    name: post.author.name,
-                                    avatar: post.author.avatar
-                                },
-                                status: post.status
-                            }
-                        }),
-                        new_items: index_last_id,
-                        last_id: last_id
-                    }
-                  });
+                        code: "1000",
+                        message: "OK",
+                        data: data
+                    });
 });
 
 // @route  POST it4788/post/get_post
 // @desc   get post
-// @access Public
-router.post('/get_post', verify, (req, res, next) => {
-    if(!req.body.id) {
+// @access Private
+/*
+Da check:
+PARAMETER_IS_NOT_ENOUGH cua id
+PARAMETER_TYPE_IS_INVALID cua id va token
+POST_IS_NOT_EXISTED
+PARAMETER_VALUE_IS_INVALID cua id
+CAN_NOT_CONNECT_TO_DB neu lay bai post that bai tu csdl hoac lay user bi loi
+*/
+router.post('/get_post', async (req, res) => {
+    var {token, id} = req.body;
+    var data;
+
+    // PARAMETER_IS_NOT_ENOUGH
+    if(id !== 0 && !id) {
         console.log("No have parameter id");
-        return res.status(500).send({
-            code: 1002,
-            message: "Parameter is not enought"
-        });
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
     }
-    // Get post
-    Post.findById(req.body.id)
-        .populate('author')
-        .exec()
-        .then(post => {
-            // console.log(post);
-            if(post) {
-                res.status(200).send({
-                    code: 1000,
-                    message: "OK",
-                    data: {
-                        id: post._id,
-                        described: post.described,
-                        created: post.created,
-                        modified: post.modified,
-                        like: post.likedUser.length,
-                        comment: post.comments.length,
-                        is_liked: post.likedUser.includes(req.user.id),
-                        image: post.image.map(image => { return {id: image._id, url: image.url};}),
-                        video: post.video,
-                        author: {
-                            id: post.author._id,
-                            name: post.author.name,
-                            avatar: post.author.avatar
-                        },
-                        status: post.status
-                    }
-                  });
-            } else {
-                res.status(404).send({
-                    code: 9992,
-                    message: "Post is not existed"
-                });
-            }
-        })
-        .catch(err => {
-            if(err.kind == "ObjectId") {
-                console.log("Sai id");
-                return res.status(500).send({
-                    code: 1004,
-                    message: "Parameter value is invalid"
-                });
-            }
-            res.status(500).send({
-                code: 1001,
-                message: "Can not connect to DB"
-            });
-        });
+
+    // PARAMETER_TYPE_IS_INVALID
+    if((id && typeof id !== "string") || (token && typeof token !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    var user;
+    try {
+        user = await getUserIDFromToken(token);
+        const post = await Post.findById(id).populate('author');
+        if(post) {
+            res.status(200).send({
+                code: "1000",
+                message: "OK",
+                data: {
+                    id: post._id,
+                    described: post.described,
+                    created: post.created.toString(),
+                    modified: post.modified.toString(),
+                    like: post.likedUser.length.toString(),
+                    comment: post.comments.length.toString(),
+                    is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                    image: post.image.map(image => { return {id: image._id, url: image.url};}),
+                    video: {
+                        url: post.video.url,
+                        thumb: post.video.url ? "null" : undefined
+                    },
+                    author: {
+                        id: post.author._id,
+                        name: post.author.name,
+                        avatar: post.author.avatar
+                    },
+                    state: post.status
+                }
+              });
+        } else {
+            return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
+        }
+    } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+        }
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+    }
 });
 
 
 function uploadFile(file) {
     const newNameFile = new Date().toISOString() + file.originalname;
-        const blob = bucket.file(newNameFile);
-        const blobStream = blob.createWriteStream({
+    const blob = bucket.file(newNameFile);
+    const blobStream = blob.createWriteStream({
         metadata: {
             contentType: file.mimetype,
         },
@@ -242,283 +309,281 @@ function uploadFile(file) {
     return new Promise((resolve, reject) => {
 
         blobStream.on('error', reject);
-        blobStream.end(file.buffer, resolve({url: publicUrl}));
+        blobStream.end(file.buffer, resolve({
+            filename: newNameFile,
+            url: publicUrl
+        }));
     });
+}
+
+
+async function deleteRemoteFile(filename) {
+    await bucket.file(filename).delete();
 }
 
 // @route  POST it4788/post/add_post
 // @desc   add new post
 // @access Public
+/*
+Da check:
+PARAMETER_TYPE_IS_INVALID described, status
+MAX_WORD_POST cua described
+Have image and video
+MAXIMUM_NUMBER_OF_IMAGES
+Mimetype image is invalid
+FILE_SIZE_IS_TOO_BIG cua anh va video
+UPLOAD_FILE_FAILED cua anh va video
+MAXIMUM_NUMBER_OF_VIDEOS
+Mimetype video is invalid
+CAN_NOT_CONNECT_TO_DB neu khong luu duoc post vao csdl
+*/
 var cpUpload = uploader.fields([{ name: 'image'}, { name: 'video'}]);
 router.post('/add_post', cpUpload, verify, async (req, res, next) => {
-    try {
-        if(req.body.described && countWord(req.body.described) > MAX_WORD_POST) {
-            console.log("MAX_WORD_POST");
-            return res.status(500).send({
-                code: 1004,
-                message: "Parameter value is invalid"
-            });
-        }
+    var {described, status} = req.body;
+    var {image, video} = req.files;
+    var user = req.user;
 
-        if(req.files.image && req.files.video) {
-            console.log("Have image and video");
-            return res.status(500).send({
-                code: 1003,
-                message: "Parameter type is invalid"
-            });
-        }
-
-        if(req.files.image) {
-            if(req.files.image.length > MAX_IMAGE_NUMBER) {
-                console.log("Max image number");
-                return res.status(500).send({
-                    code: 1008,
-                    message: "Maximum number of images"
-                });
-            }
-
-            for(const image of req.files.image) {
-                const filetypes = /jpeg|jpg|png/;
-                const mimetype = filetypes.test(image.mimetype);
-                if(!mimetype) {
-                    console.log("Mimetype image is invalid");
-                    return res.status(500).send({
-                        code: 1003,
-                        message: "Parameter type is invalid"
-                    });
-                }
-
-                if (image.buffer.byteLength > MAX_SIZE_IMAGE) {
-                    console.log("Max image file size");
-                    return res.status(500).send({
-                        code: 1008,
-                        message: "File size is too big"
-                    });
-                }
-            }
-        }
-
-        if(req.files.video) {
-            if(req.files.video.length > MAX_VIDEO_NUMBER) {
-                console.log("MAX_VIDEO_NUMBER");
-                return res.status(500).send({
-                    code: 1008,
-                    message: "Maximum number of video"
-                });
-            }
-
-            for(const video of req.files.video) {
-                const filetypes = /mp4/;
-                const mimetype = filetypes.test(video.mimetype);
-                if(!mimetype) {
-                    console.log("Mimetype video is invalid");
-                    return res.status(500).send({
-                        code: 1003,
-                        message: "Parameter type is invalid"
-                    });
-                }
-
-                if (video.buffer.byteLength > MAX_SIZE_VIDEO) {
-                    console.log("Max video file size");
-                    return res.status(500).send({
-                        code: 1008,
-                        message: "File size is too big"
-                    });
-                }
-            }
-        }
-
-        let promises;
-        if(req.files.image) {
-            // This is where we'll upload our file to Cloud Storage
-            // Create new blob in the bucket referencing the file
-            promises = req.files.image.map(image => {
-                return uploadFile(image);
-            });
-        }
-
-        if(req.files.video) {
-            // This is where we'll upload our file to Cloud Storage
-            // Create new blob in the bucket referencing the file
-            promises = req.files.video.map(video => {
-                return uploadFile(video);
-            });
-        }
-
-        if(promises) {
-            Promise.all(promises).then(file => {
-                // do what you want
-                // Validation
-                let post;
-
-                if(req.files.image) {
-                    // Create Post
-                    post = new Post({
-                        author: req.user.id,
-                        described: req.body.described,
-                        status: req.body.status,
-                        image: file
-                    });
-                } else if(req.files.video) {
-                    // Create Post
-                    post = new Post({
-                        author: req.user.id,
-                        described: req.body.described,
-                        status: req.body.status,
-                        video: file[0]
-                    });
-                } else {
-                    // Create Post
-                    post = new Post({
-                        author: req.user.id,
-                        described: req.body.described,
-                        status: req.body.status
-                    });
-                }
-
-
-                // Save Post
-                post.save()
-                    .then(result => {
-                        // console.log(result);
-                        res.status(201).send({
-                            code: 1000,
-                            message: "OK",
-                            data: {
-                                id: result._id,
-                                url: null
-                            }
-                        });
-                    })
-                    .catch(err => {
-                        // console.log(err);
-                        res.status(500).send({
-                            code: 1001,
-                            message: "Can not connect to DB"
-                        });
-                    });
-            }).catch(err => {
-                // handle I/O error
-                console.error(err);
-                res.status(500).send({
-                    code: 1007,
-                    message: "Upload file failed"
-                });
-            });
-    } else {
-        return res.status(500).send({
-            code: 1003,
-            message: "Parameter type is invalid"
-        });
+    // PARAMETER_TYPE_IS_INVALID
+    if((described && typeof described !== "string") || (status && typeof status !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
     }
-    } catch (error) {
-        res.status(500).send({
-            code: 1001,
-            message: "Can not connect to DB"
+
+    if(described && countWord(described) > MAX_WORD_POST) {
+        console.log("MAX_WORD_POST");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    if(image && video) {
+        console.log("Have image and video");
+        return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+    }
+
+    var post = new Post({
+        author: user.id,
+        described: described,
+        status: status
+    });
+
+    let promises;
+
+    if(image) {
+        // MAXIMUM_NUMBER_OF_IMAGES
+        if(image.length > MAX_IMAGE_NUMBER) {
+            console.log("MAXIMUM_NUMBER_OF_IMAGES");
+            return setAndSendResponse(res, responseError.MAXIMUM_NUMBER_OF_IMAGES);
+        }
+
+        for(const item_image of image) {
+            const filetypes = /jpeg|jpg|png/;
+            const mimetype = filetypes.test(item_image.mimetype);
+            // PARAMETER_TYPE_IS_INVALID
+            if(!mimetype) {
+                console.log("Mimetype image is invalid");
+                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+            }
+
+            // FILE_SIZE_IS_TOO_BIG
+            if (item_image.buffer.byteLength > MAX_SIZE_IMAGE) {
+                console.log("FILE_SIZE_IS_TOO_BIG");
+                return setAndSendResponse(res, responseError.FILE_SIZE_IS_TOO_BIG);
+            }
+        }
+
+        promises = image.map(item_image => {
+            return uploadFile(item_image);
         });
+        try {
+            const file = await Promise.all(promises);
+            post.image = file;
+        } catch (err) {
+            console.log("UPLOAD_FILE_FAILED");
+            return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
+        }
+
+    }
+
+    if(video) {
+        if(video.length > MAX_VIDEO_NUMBER) {
+            console.log("MAX_VIDEO_NUMBER");
+            return res.status(500).send({
+                code: "1008",
+                message: "Maximum number of video"
+            });
+        }
+
+        for(const item_video of video) {
+            const filetypes = /mp4/;
+            const mimetype = filetypes.test(item_video.mimetype);
+            if(!mimetype) {
+                console.log("Mimetype video is invalid");
+                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+            }
+
+            if (item_video.buffer.byteLength > MAX_SIZE_VIDEO) {
+                console.log("Max video file size");
+                return setAndSendResponse(res, responseError.FILE_SIZE_IS_TOO_BIG);
+            }
+        }
+
+        promises = req.files.video.map(video => {
+            return uploadFile(video);
+        });
+        try {
+            const file = await Promise.all(promises);
+            post.video = file[0];
+        } catch (err) {
+            console.log("UPLOAD_FILE_FAILED");
+            return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
+        }
+
+
+    }
+
+    try {
+        const savedPost = await post.save();
+        return res.status(201).send({
+            code: "1000",
+            message: "OK",
+            data: {
+                id: savedPost._id,
+                url: null
+            }
+        });
+    } catch (err) {
+        console.log("CAN_NOT_CONNECT_TO_DB");
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 });
 
 
 // @route  POST it4788/post/delete_post
 // @desc   delete a post
-// @access Public
+// @access Private
+/*
+Da check:
+PARAMETER_IS_NOT_ENOUGH cua id, token
+PARAMETER_TYPE_IS_INVALID cua id, token
+PARAMETER_VALUE_IS_INVALID cua id
+POST_IS_NOT_EXISTED
+NOT_ACCESS
+EXCEPTION_ERROR khi khong xoa duoc anh, video
+CAN_NOT_CONNECT_TO_DB khi khong xoa duoc post trong csdl
+*/
 router.post('/delete_post', verify, async (req, res) => {
     var { id } = req.body;
-    if (!id) {
-        console.log("No have parameter id");
-        return res.status(500).send({
-            code: 1002,
-            message: "Parameter is not enought"
-        });
-    }
     var user = req.user;
+
+    // PARAMETER_IS_NOT_ENOUGH
+    if(id !== 0 && !id) {
+        console.log("No have parameter id");
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+    }
+
+    // PARAMETER_TYPE_IS_INVALID
+    if((id && typeof id !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
     let post;
     try {
         post = await Post.findById(id);
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return res.status(500).send({
-                code: 1004,
-                message: "Parameter value is invalid"
-            });
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
         console.log("Can not connect to DB");
-        return res.status(500).send({
-            code: 1001,
-            message: "Can not connect to DB"
-        });
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 
     if (!post) {
         console.log("Post is not existed");
-        return res.status(404).send({
-            code: 9992,
-            message: "Post is not existed"
-        });
+        return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
     }
 
     if(post.author != user.id) {
         console.log("Not Access");
-        return res.status(403).send({
-            code: 1009,
-            message: "Not Access"
-        });
+        return setAndSendResponse(res, responseError.NOT_ACCESS);
+    }
+
+    if(post.image.length > 0) {
+        for(image of post.image) {
+            try {
+                await deleteRemoteFile(image.filename);
+            } catch (err) {
+                console.log("Khong xoa duoc anh");
+                return setAndSendResponse(res, responseError.EXCEPTION_ERROR);
+            }
+        }
+    }
+
+    if(post.video.url) {
+        try {
+            await deleteRemoteFile(post.video.filename);
+        } catch (err) {
+            console.log("Khong xoa duoc video");
+            return setAndSendResponse(res, responseError.EXCEPTION_ERROR);
+        }
     }
 
     try {
         const deletedPost = await Post.findByIdAndDelete(id);
         return res.status(200).send({
-            code: 1000,
+            code: "1000",
             message: "OK"
         });
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return res.status(500).send({
-                code: 1004,
-                message: "Parameter value is invalid"
-            });
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
         console.log("Can not connect to DB");
-        return res.status(500).send({
-            code: 1001,
-            message: "Can not connect to DB"
-        });
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 })
 
 
 // @route  POST it4788/post/edit_post
 // @desc   edit an existing post
-// @access Public
+// @access Private
 router.post('/edit_post', cpUpload, verify, async (req, res) => {
     var { id, status, image_del, image_sort, described, auto_accept, auto_block } = req.body;
+    var {image, video} = req.files;
+    var user = req.user;
+
     if(image_del) {
-        image_del = JSON.parse(image_del);
-        console.log(image_del);
+        try {
+            image_del = JSON.parse(image_del);
+            if(!Array.isArray(image_del)) {
+                console.log("image_del PARAMETER_TYPE_IS_INVALID");
+                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+            }
+        } catch (err) {
+            console.log("image_del parse loi PARAMETER_TYPE_IS_INVALID");
+            return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+        }
     } else {
         image_del = [];
     }
 
-    if (!id) {
+    // PARAMETER_IS_NOT_ENOUGH
+    if(id !== 0 && !id) {
         console.log("No have parameter id");
-        return res.status(400).send({
-            code: 1002,
-            message: "Parameter is not enought"
-        });
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
     }
 
-    if(req.files.image && req.files.video) {
+    // PARAMETER_TYPE_IS_INVALID
+    if((id && typeof id !== "string") || (described && typeof described !== "string") || (status && typeof status !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    if(image && video) {
         console.log("Have image and video gui di");
-        return res.status(500).send({
-            code: 1003,
-            message: "Parameter type is invalid"
-        });
+        return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
     }
-
-    var user = req.user;
 
     let post;
     try {
@@ -526,35 +591,23 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return res.status(500).send({
-                code: 1004,
-                message: "Parameter value is invalid"
-            });
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
         console.log("Can not connect to DB");
-        return res.status(500).send({
-            code: 1001,
-            message: "Can not connect to DB"
-        });
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 
     if (!post) {
         console.log("Post is not existed");
-        return res.status(404).send({
-            code: 9992,
-            message: "Post is not existed"
-        });
+        return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
     }
 
     if(post.author != user.id) {
         console.log("Not Access");
-        return res.status(403).send({
-            code: 1009,
-            message: "Not Access"
-        });
+        return setAndSendResponse(res, responseError.NOT_ACCESS);
     }
 
-    if(image_del.length > 0) {
+    if(image_del && image_del.length > 0) {
         for(const id_image_del of image_del) {
             let isInvalid = true;
             for(const image of post.image) {
@@ -564,26 +617,38 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             }
             if(isInvalid) {
                 console.log("Sai id");
-                return res.status(500).send({
-                    code: 1004,
-                    message: "Parameter value is invalid"
-                });
+                return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
             }
+        }
+
+        // Xoa anh
+        for(const id_image_del of image_del) {
+            console.log("xoa anh");
+            var i;
+            for(i=0; i < post.image.length; i++) {
+                if(post.image[i]._id == id_image_del) {
+                    break;
+                }
+            }
+            try {
+                console.log(post.image[i].filename);
+                await deleteRemoteFile(post.image[i].filename);
+            } catch (err) {
+                return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+            }
+            post.image.splice(i, 1);
         }
     }
 
     let promise, file;
 
-    if(req.files.video && !req.file.image) {
-        if(post.image.length > 0) {
+    if(video && !image) {
+        if(post.image.length != 0) {
             console.log("Have image and video up video");
-            return res.status(500).send({
-                code: 1003,
-                message: "Parameter type is invalid"
-            });
+            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
         }
 
-        if(req.files.video.length > MAX_VIDEO_NUMBER) {
+        if(video.length > MAX_VIDEO_NUMBER) {
             console.log("MAX_VIDEO_NUMBER");
             return res.status(500).send({
                 code: 1008,
@@ -591,91 +656,68 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             });
         }
 
-        for(const video of req.files.video) {
+        for(const item_video of video) {
             const filetypes = /mp4/;
-            const mimetype = filetypes.test(video.mimetype);
+            const mimetype = filetypes.test(item_video.mimetype);
             if(!mimetype) {
                 console.log("Mimetype video is invalid");
-                return res.status(500).send({
-                    code: 1003,
-                    message: "Parameter type is invalid"
-                });
+                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
             }
 
-            if (video.buffer.byteLength > MAX_SIZE_VIDEO) {
+            if (item_video.buffer.byteLength > MAX_SIZE_VIDEO) {
                 console.log("Max video file size");
-                return res.status(500).send({
-                    code: 1008,
-                    message: "File size is too big"
-                });
+                return setAndSendResponse(res, responseError.FILE_SIZE_IS_TOO_BIG);
             }
         }
 
-        promises = req.files.video.map(video => {
+        promises = video.map(video => {
             return uploadFile(video);
         });
+
+        try {
+            if(post.video.url) {
+                await deleteRemoteFile(post.video.filename);
+            }
+        } catch (err) {
+            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+        }
+
         try {
             file = await Promise.all(promises);
-            post.video.url = file[0].url;
+            post.video = file[0];
         } catch (err) {
             console.log("Upload fail");
-            return res.status(500).send({
-                code: 1001,
-                message: "Can not connect to DB"
-            });
+            return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
         }
     }
 
-    if(req.files.image && !req.files.video) {
-        if(post.video.url && req.files.image.length + post.image.length - image_del.length > 0) {
+    if(image && !video) {
+        if(post.video.url) {
             console.log("Have image and video up anh");
-            return res.status(500).send({
-                code: 1003,
-                message: "Parameter type is invalid"
-            });
+            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
         }
-        if(req.files.image.length + post.image.length - image_del.length > MAX_IMAGE_NUMBER) {
-            console.log("Max image number");
-            return res.status(500).send({
-                code: 1008,
-                message: "Maximum number of images"
-            });
-        }
-        for(const image of req.files.image) {
+
+        for(const item_image of image) {
             const filetypes = /jpeg|jpg|png/;
-            const mimetype = filetypes.test(image.mimetype);
+            const mimetype = filetypes.test(item_image.mimetype);
             if(!mimetype) {
                 console.log("Mimetype image is invalid");
-                return res.status(500).send({
-                    code: 1003,
-                    message: "Parameter type is invalid"
-                });
+                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
             }
 
-            if (image.buffer.byteLength > MAX_SIZE_IMAGE) {
+            if (item_image.buffer.byteLength > MAX_SIZE_IMAGE) {
                 console.log("Max image file size");
-                return res.status(500).send({
-                    code: 1008,
-                    message: "File size is too big"
-                });
+                return setAndSendResponse(res, responseError.FILE_SIZE_IS_TOO_BIG);
             }
         }
 
-        if(image_del.length > 0) {
-            for(const id_image_del of image_del) {
-                console.log("xoa anh");
-                var i;
-                for(i=0; i < post.image.length; i++) {
-                    if(post.image[i]._id == id_image_del) {
-                        break;
-                    }
-                }
-                post.image.splice(i, 1);
-            }
+        if(image.length + post.image.length > MAX_IMAGE_NUMBER) {
+            console.log("Max image number");
+            return setAndSendResponse(res, responseError.MAXIMUM_NUMBER_OF_IMAGES);
         }
 
-        promises = req.files.image.map(image => {
-            return uploadFile(image);
+        promises = image.map(item_image => {
+            return uploadFile(item_image);
         });
 
         try {
@@ -685,10 +727,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             }
         } catch (err) {
             console.log("Upload fail");
-            return res.status(500).send({
-                code: 1001,
-                message: "Can not connect to DB"
-            });
+            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
         }
     }
 
@@ -696,39 +735,25 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
         console.log("Have described");
         if(countWord(described) > MAX_WORD_POST) {
             console.log("MAX_WORD_POST");
-            return res.status(400).send({
-                code: 1004,
-                message: "Parameter value is invalid"
-            });
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
         post.described = described;
-    } else {
-        console.log("No described");
     }
 
     if(status) {
         console.log("Have status");
         post.status = status;
-    } else {
-        console.log("No status");
     }
 
     try {
         const savedPost = await post.save();
         return res.status(200).send({
             code: 1000,
-            message: "OK",
-            data: {
-                id: id,
-                url: null
-            }
+            message: "OK"
         });
     } catch (err) {
         console.log("Edit fail");
-        return res.status(500).send({
-            code: 1001,
-            message: "Can not connect to DB"
-        });
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 })
 

@@ -1,6 +1,15 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+const opts = {
+    // Make Mongoose use Unix time (seconds since Jan 1, 1970)
+    timestamps: {
+        currentTime: () => Math.floor(Date.now() / 1000),
+        createdAt: 'created',
+        updatedAt: 'modified',
+    }
+};
+
 const postSchema = new Schema({
     // author of post
     author: {
@@ -17,14 +26,9 @@ const postSchema = new Schema({
         type: String
     },
     // time when post is created
-    created: {
-        type: Date,
-        default: Date.now()
-    },
+    created: Number,
     // time when post is modified
-    modified: {
-        type: Date
-    },
+    modified: Number,
     // number people liked post
     like: {
         type: Number
@@ -43,11 +47,17 @@ const postSchema = new Schema({
         ref: 'comments'
     }],
     image: [{
+        filename: {
+            type: String
+        },
         url: {
             type: String
         }
     }],
     video: {
+        filename: {
+            type: String
+        },
         url: {
             type: String
         }
@@ -56,5 +66,5 @@ const postSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'reports_post'
     }]
-});
+}, opts);
 module.exports = mongoose.model('posts', postSchema);
