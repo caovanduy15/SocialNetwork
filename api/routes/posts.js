@@ -308,11 +308,18 @@ function uploadFile(file) {
         `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURI(blob.name)}?alt=media`;
     return new Promise((resolve, reject) => {
 
-        blobStream.on('error', reject(new Error('Loi upload file')));
-        blobStream.end(file.buffer, resolve({
-            filename: newNameFile,
-            url: publicUrl
-        }));
+        blobStream.on('error', function(err) {
+            reject(err);
+        });
+
+        blobStream.on('finish', () => {
+            resolve({
+                filename: newNameFile,
+                url: publicUrl
+            });
+          });
+
+        blobStream.end(file.buffer);
     });
 }
 
@@ -397,6 +404,7 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
             const file = await Promise.all(promises);
             post.image = file;
         } catch (err) {
+            console.error(err);
             console.log("UPLOAD_FILE_FAILED");
             return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
         }
