@@ -14,6 +14,11 @@ const UserSchema = new Schema({
     dateLogin: {
         type: Date
     },
+    avatar: {
+        url: {
+            type: String
+        }
+    },
     password: {
         type: String,
         required: true,
@@ -41,6 +46,15 @@ const UserSchema = new Schema({
         type: Date
       }
     }],
+    blockedList: [{
+      user: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
+      },
+      createdAt: {
+        type: Date
+      }
+    }],
     friendRequestReceived: [{
       fromUser: {
         type: Schema.Types.ObjectId,
@@ -54,8 +68,32 @@ const UserSchema = new Schema({
     friendRequestSent: [{
       type: Schema.Types.ObjectId,
       ref: 'users',
-    }]
-
+    }],
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    description: {
+      type: String,
+      default: "chưa có mô tả"
+    },
+    coverImage: {
+        url: {
+          type: String
+      }
+    },
+    address: {
+      type: String
+    },
+    city: { 
+      type: String
+    },
+    country: {
+      type: String
+    },
+    link: {
+      type: String
+    }
 })
 
 module.exports = User = mongoose.model('users', UserSchema);
