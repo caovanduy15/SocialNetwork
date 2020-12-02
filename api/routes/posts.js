@@ -308,7 +308,7 @@ function uploadFile(file) {
         `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURI(blob.name)}?alt=media`;
     return new Promise((resolve, reject) => {
 
-        blobStream.on('error', reject);
+        blobStream.on('error', reject(new Error('Loi upload file')));
         blobStream.end(file.buffer, resolve({
             filename: newNameFile,
             url: publicUrl
@@ -548,6 +548,22 @@ router.post('/delete_post', verify, async (req, res) => {
 // @route  POST it4788/post/edit_post
 // @desc   edit an existing post
 // @access Private
+/*
+Da check:
+PARAMETER_TYPE_IS_INVALID cho image_del, gia tri cua mang image_del, id, described, status, image, video
+Loai bo cac gia tri trung lap cua image_del
+PARAMETER_IS_NOT_ENOUGH cua id
+UNKNOWN_ERROR co ca anh va video gui di, xoa anh that bai
+PARAMETER_VALUE_IS_INVALID cua id, phan tu cua mang image_del
+CAN_NOT_CONNECT_TO_DB neu truy van post that bai
+POST_IS_NOT_EXISTED
+NOT_ACCESS
+MAX_VIDEO_NUMBER
+FILE_SIZE_IS_TOO_BIG cua image, video
+UPLOAD_FILE_FAILED neu upload image va video that bai
+MAXIMUM_NUMBER_OF_IMAGES
+MAX_WORD_POST cua described
+*/
 router.post('/edit_post', cpUpload, verify, async (req, res) => {
     var { id, status, image_del, image_sort, described, auto_accept, auto_block } = req.body;
     var {image, video} = req.files;
@@ -556,14 +572,21 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
     if(image_del) {
         try {
             image_del = JSON.parse(image_del);
-            if(!Array.isArray(image_del)) {
-                console.log("image_del PARAMETER_TYPE_IS_INVALID");
-                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
-            }
         } catch (err) {
             console.log("image_del parse loi PARAMETER_TYPE_IS_INVALID");
             return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
         }
+        if(!Array.isArray(image_del)) {
+            console.log("image_del PARAMETER_TYPE_IS_INVALID");
+            return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+        }
+        for(const id_image_del of image_del) {
+            if(typeof id_image_del !== "string") {
+                console.log("image_del element PARAMETER_TYPE_IS_INVALID");
+                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+            }
+        }
+        image_del = image_del.filter((item, i, ar) => ar.indexOf(item) === i);
     } else {
         image_del = [];
     }
@@ -607,6 +630,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
         return setAndSendResponse(res, responseError.NOT_ACCESS);
     }
 
+    // Check gia tri image_del hop le
     if(image_del && image_del.length > 0) {
         for(const id_image_del of image_del) {
             let isInvalid = true;
@@ -631,7 +655,6 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
                 }
             }
             try {
-                console.log(post.image[i].filename);
                 await deleteRemoteFile(post.image[i].filename);
             } catch (err) {
                 return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
