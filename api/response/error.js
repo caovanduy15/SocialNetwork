@@ -139,4 +139,17 @@ function setAndSendResponse(res, responseError) {
     return res.status(responseError.statusCode).send(responseError.body);
 }
 
-module.exports = {responseError, setAndSendResponse};
+function callRes(res, responseErrorName, data = {}) {
+  if (responseErrorName != responseError.OK)
+    return res.status(responseErrorName.statusCode).send(responseErrorName.body);
+  else {
+    let x = {
+      code: responseErrorName.body.code,
+      message: responseErrorName.body.message,
+      data: data 
+    }
+    return res.status(responseErrorName.statusCode).send(x);
+  }
+}
+
+module.exports = {responseError, setAndSendResponse, callRes};
