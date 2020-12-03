@@ -55,10 +55,10 @@ router.post('/set_comment', verify, async (req, res) => {
 
         // Save comment
         const savedComment = await comment.save();
-        if(post.comments.length > 0) {
-            post.comments.push(savedComment._id);
-        } else {
+        if(!post.comments || post.comments.length < 1) {
             post.comments = [savedComment._id];
+        } else {
+            post.comments.push(savedComment._id);
         }
         const updatedPost = await post.save();
 
@@ -72,7 +72,7 @@ router.post('/set_comment', verify, async (req, res) => {
                 poster: {
                     id: poster._id,
                     name: poster.name,
-                    avatar: null
+                    avatar: poster.avatar
                 }
             },
             is_blocked: null
@@ -97,7 +97,7 @@ router.post('/set_comment', verify, async (req, res) => {
 // @desc   add new comment
 // @access Public
 router.post('/get_comment', verify, async (req, res) => {
-    if(!req.body.id || (req.body.index !== 0 || req.body.count !== 0) && (!req.body.index || !req.body.count)) {
+    if(!req.body.id || (req.body.index !== 0 && !req.body.index) || (req.body.count !== 0 && !req.body.count)) {
         console.log("No have parameter id, index, count");
         return res.status(500).send({
             code: 1002,
@@ -117,8 +117,9 @@ router.post('/get_comment', verify, async (req, res) => {
         }
 
         const comments = await Comment.find({post: req.body.id}).populate('poster').sort("-created");
+        let sliceComments = comments.slice(req.body.index, parseInt(req.body.index, 10) + parseInt(req.body.count, 10));
 
-        if(comments.length == 0) {
+        if(!comments || sliceComments.length < 1) {
             console.log('Post no have comments');
             return res.status(500).send({
                 code: 9994,
@@ -129,7 +130,7 @@ router.post('/get_comment', verify, async (req, res) => {
         res.status(200).send({
             code: 1000,
             message: "OK",
-            data: comments.map(comment => {
+            data: sliceComments.map(comment => {
                 return {
                     id: comment._id,
                     comment: comment.comment,
@@ -137,7 +138,7 @@ router.post('/get_comment', verify, async (req, res) => {
                     poster: {
                         id: comment.poster._id,
                         name: comment.poster.name,
-                        avatar: null
+                        avatar: comment.poster.avatar
                     },
                     is_blocked: null
                 };
