@@ -15,17 +15,47 @@ const settingSchema = Schema(
       type: Schema.Types.Number,
       default: 1
     },
-    from_friends: {
+    from_friend: {
       type: Schema.Types.Number,
       default: 1
     },
-    requested_friends: {
+    requested_friend: {
       type: Schema.Types.Number,
-      defalt: 1
+      default: 1
     },
-    birthday
-
+    suggested_friend: {
+      type: Schema.Types.Number,
+      default: 1
+    },
+    birthday: {
+      type: Schema.Types.Number,
+      default: 1
+    },
+    video: {
+      type: Schema.Types.Number,
+      default: 1
+    },
+    report: {
+      type: Schema.Types.Number,
+      default: 1
+    },
+    sound_on: {
+      type: Schema.Types.Number,
+      default: 1
+    },
+    notification_one: {
+      type: Schema.Types.Number,
+      default: 1
+    },
+    vibrant_on: {
+      type: Schema.Types.Number,
+      default: 1
+    },
+    led_on: {
+      type: Schema.Types.Number,
+      default: 1
+    }
   }
 );
 
-module.exports = Setting = mongoose.model('search', settingSchema);
+module.exports = Setting = mongoose.model('settings', settingSchema);
