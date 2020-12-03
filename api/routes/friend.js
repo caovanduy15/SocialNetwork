@@ -3,7 +3,9 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const verify = require('../utils/verifyToken');
-
+const convertString = require('../utils/convertString');
+const {responseError, callRes} = require('../response/error');
+const checkInput = require('../utils/validInput');
 // @route  POST it4788/friend/get_requested_friends
 // @access Public
 // Example: Use Postman
@@ -19,15 +21,19 @@ const verify = require('../utils/verifyToken');
 //   "count": 10
 // }
 router.post('/get_requested_friends', verify, async (req, res) => {
-  let { token, index, count } = req.body;
+  let { index, count } = req.body;
   let id = req.user.id;
-  let code, message;
   let data = {
     request: [],
     total: 0
   };
   let thisUser;
 
+  // check input data
+  if (!index || !count) return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+  if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID);
+  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID);
 
   try {
     thisUser = await User.findById(id)
@@ -61,17 +67,13 @@ router.post('/get_requested_friends', verify, async (req, res) => {
       newElement.created = thisUser.friendRequestReceived[i].lastCreated;
       data.request.push(newElement);
     }
+    if (data.request.length == 0) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
     thisUser = await User.findById(id);
     data.total = thisUser.friendRequestReceived.length;
-    code = 1000;
-    message = "OK";
+    return callRes(res, responseError.OK, data);
   } catch (error) {
-    code = 1005;
-    message = error.message;
+    return callRes(res, responseError.UNKNOWN_ERROR);
   }
-
-
-  res.json({ code, message, data });
 })
 
 
@@ -90,7 +92,7 @@ router.post('/set_request_friend', verify, async (req, res) => {
     requested_friends: null // số người đang đươc tài khoản hiện tại gửi request friend
   }
 
-  let { token, user_id } = req.body; // user_id là id của người nhận request friend
+  let { user_id } = req.body; // user_id là id của người nhận request friend
   let id = req.user.id;
   let targetUser, thisUser;
   if (id == user_id) {
@@ -369,6 +371,8 @@ router.post('/get_user_friends', verify, async (req, res) => {
       data.friends.push(friendInfor);
     }
     data.total = targetUser.friends.length;
+    code = 1000;
+    message = "OK"
   } catch (error) {
     if (user_id && !targetUser) {
       code = 1004;
@@ -379,7 +383,8 @@ router.post('/get_user_friends', verify, async (req, res) => {
     }
   }
 
-  res.json({ code, message, data});
+  setAndSendResponse(res, responseError.OK, convertString(data))
+  // res.json({ code, message, data});
 })
 
 // count same friend between 2 array x, y
