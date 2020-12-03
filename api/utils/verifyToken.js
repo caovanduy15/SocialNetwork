@@ -1,12 +1,17 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+var {responseError, setAndSendResponse} = require('../response/error');
 
 module.exports = function (req, res, next) {
     const token = req.body.token;
-    if (!token) return res.status(401).send({
-        code: 9998,
-        message: "you must provide token in request body"
-    });
+    if(token !== 0 && !token) {
+        console.log("PARAMETER_IS_NOT_ENOUGH");
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+    }
+    if(token && typeof token !== "string") {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
 
     try {
         const verified = jwt.verify(token, process.env.jwtSecret);
