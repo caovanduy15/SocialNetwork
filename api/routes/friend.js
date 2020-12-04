@@ -340,22 +340,24 @@ router.post('/get_user_friends', verify, async (req, res) => {
   }
 
   // check input data
-  if (!index || !count) return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+  if ( index === undefined|| count === undefined) 
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
   if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID);
-  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID);
-  if (user_id && typeof user_id !== 'string') return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');
+  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, ': index, count');
 
   // var
   let thisUser, targetUser;
 
   try {
     thisUser = await User.findById(id).select({ "friends": 1 });
-    if (!targetUser) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID)
+    if (!thisUser) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'thisUser')
     // console.log(thisUser);
     if (user_id && user_id != id) {
       targetUser = await User.findById(user_id).select({ "friends": 1 });
-      if (!targetUser) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID)
+      if (!targetUser) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'targetUser');
+      // check block here
+
     } else {
       targetUser = thisUser;
     }
@@ -375,28 +377,19 @@ router.post('/get_user_friends', verify, async (req, res) => {
       friendInfor.id = x.friend._id.toString();
       friendInfor.username = x.friend.username;
       friendInfor.avatar = x.friend.avatar;
-      friendInfor.created = x.createdAt;
+      friendInfor.created = validTime.timeToSecond(x.createdAt) ;
       if (!thisUser._id.equals(x.friend._id))
         if (thisUser.friends.length > 0 && x.friend.friends.length > 0) {
           friendInfor.same_friends = countSameFriend(thisUser.friends, x.friend.friends);
         }
       data.friends.push(friendInfor);
     }
+    if (data.friends.length == 0) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'friends');
     data.total = targetUser.friends.length;
-    code = 1000;
-    message = "OK"
+    return callRes(res, responseError.OK, data);
   } catch (error) {
-    if (user_id && !targetUser) {
-      code = 1004;
-      message = "invalid parameter";
-    } else {
-      code = 1005;
-      message = error.message;
-    }
+    return callRes(res, responseError.UNKNOWN_ERROR, error.message);
   }
-
-  setAndSendResponse(res, responseError.OK, convertString(data))
-  // res.json({ code, message, data});
 })
 
 // count same friend between 2 array x, y
