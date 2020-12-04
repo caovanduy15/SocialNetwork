@@ -27,6 +27,7 @@ const commentSchema = Schema({
     ref: "users",
   },
   created: Number,
-});
+  modified: Number,
+}, opts);
 
 module.exports = Comment = mongoose.model("comments", commentSchema);

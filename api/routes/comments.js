@@ -3,6 +3,7 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const verify = require('../utils/verifyToken');
+var {responseError, setAndSendResponse} = require('../response/error');
 const MAX_WORD_COMMENT = 500;
 const COUNT_DEFAULT  = 2;
 
@@ -14,48 +15,61 @@ function countWord(str) {
 // @desc   add new comment
 // @access Public
 router.post('/set_comment', verify, async (req, res) => {
-    if(!req.body.id || !req.body.comment || !req.body.index || !req.body.count) {
+    var {id, comment, index, count} = req.body;
+    var user = req.user;
+
+    if(!id || !comment || (index !== 0 && !index) || (count !== 0 && !count)) {
         console.log("No have parameter id, comment, index, count");
-        return res.status(500).send({
-            code: 1002,
-            message: "Parameter is not enought"
-        });
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
     }
 
+    // PARAMETER_TYPE_IS_INVALID
+    if((id && typeof id !== "string") || (comment && typeof comment !== "string") || (index && typeof index !== "string") || (count && typeof count !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    index = parseInt(index, 10);
+    count = parseInt(count, 10);
+    if(isNaN(index) || isNaN(count)) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    if(comment && countWord(comment) > MAX_WORD_COMMENT) {
+        console.log("MAX_WORD_COMMENT");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    var post;
     try {
-        // Validation
-        if(req.body.comment && countWord(req.body.comment) > MAX_WORD_COMMENT) {
-            console.log("MAX_WORD_COMMENT");
-            return res.status(500).send({
-                code: 1004,
-                message: "Parameter value is invalid"
-            });
+        post = await Post.findById(id);
+    } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
+        console.log("findById Post");
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+    }
 
-        const post = await Post.findById(req.body.id);
-        if(!post) {
-            return res.status(400).send({
-                code: 9992,
-                message: "Post is not existed"
-            });
-        }
+    if (!post) {
+        console.log("Post is not existed");
+        return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
+    }
 
-        const poster = await User.findById(req.user.id);
-        if(!poster) return res.status(400).send({
-            code: 9995,
-            message: "User is not validated",
-        });
+    // Create Comment
+    const _comment = new Comment({
+        comment: comment,
+        poster: user.id,
+        post: id
+    });
 
-        // Create Comment
-        const comment = new Comment({
-            comment: req.body.comment,
-            poster: req.user.id,
-            post: req.body.id
-        });
-
+    try {
+        const poster = await User.findById(user.id);
         // Save comment
-        const savedComment = await comment.save();
-        if(!post.comments || post.comments.length < 1) {
+        const savedComment = await _comment.save();
+        if(!post.comments) {
             post.comments = [savedComment._id];
         } else {
             post.comments.push(savedComment._id);
@@ -63,33 +77,23 @@ router.post('/set_comment', verify, async (req, res) => {
         const updatedPost = await post.save();
 
         res.status(200).send({
-            code: 1000,
+            code: "1000",
             message: "OK",
             data: {
                 id: savedComment._id,
                 comment: savedComment.comment,
-                created: savedComment.created,
+                created: savedComment.created.toString(),
                 poster: {
                     id: poster._id,
                     name: poster.name,
                     avatar: poster.avatar
                 }
             },
-            is_blocked: null
+            is_blocked: "null"
         });
     } catch (err) {
-        if(err.kind == "ObjectId") {
-            console.log("Sai id");
-            return res.status(500).send({
-                code: 1004,
-                message: "Parameter value is invalid"
-            });
-        }
         console.log(err);
-        res.status(400).send({
-            code: 1001,
-            message: "Can not connect to DB"
-        });
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 });
 
@@ -97,66 +101,73 @@ router.post('/set_comment', verify, async (req, res) => {
 // @desc   add new comment
 // @access Public
 router.post('/get_comment', verify, async (req, res) => {
-    if(!req.body.id || (req.body.index !== 0 && !req.body.index) || (req.body.count !== 0 && !req.body.count)) {
+    var {id, index, count} = req.body;
+    var user = req.user;
+
+    if(!id || (index !== 0 && !index) || (count !== 0 && !count)) {
         console.log("No have parameter id, index, count");
-        return res.status(500).send({
-            code: 1002,
-            message: "Parameter is not enought"
-        });
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+    }
+
+    // PARAMETER_TYPE_IS_INVALID
+    if((id && typeof id !== "string") || (index && typeof index !== "string") || (count && typeof count !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    index = parseInt(index, 10);
+    count = parseInt(count, 10);
+    if(isNaN(index) || isNaN(count)) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    var post;
+    try {
+        post = await Post.findById(id);
+    } catch (err) {
+        if(err.kind == "ObjectId") {
+            console.log("Sai id");
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+        }
+        console.log("Can not connect to DB");
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+    }
+
+    if(!post) {
+        console.log('Post is not existed');
+        return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
     }
 
     try {
-        const post = await Post.findById(req.body.id);
-
-        if(!post) {
-            console.log('Post is not existed');
-            return res.status(404).send({
-                code: 9992,
-                message: "Post is not existed"
-            });
-        }
-
         const comments = await Comment.find({post: req.body.id}).populate('poster').sort("-created");
-        let sliceComments = comments.slice(req.body.index, parseInt(req.body.index, 10) + parseInt(req.body.count, 10));
+        let sliceComments = comments.slice(index, index + count);
 
         if(!comments || sliceComments.length < 1) {
             console.log('Post no have comments');
-            return res.status(500).send({
-                code: 9994,
-                message: "No data or end of list data"
-            });
+            return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
         }
 
         res.status(200).send({
-            code: 1000,
+            code: "1000",
             message: "OK",
             data: sliceComments.map(comment => {
                 return {
                     id: comment._id,
                     comment: comment.comment,
-                    created: comment.created,
+                    created: comment.created.toString(),
                     poster: {
                         id: comment.poster._id,
                         name: comment.poster.name,
                         avatar: comment.poster.avatar
                     },
-                    is_blocked: null
+                    is_blocked: "null"
                 };
-                })
-            });
-    } catch (err) {
-        if(err.kind == "ObjectId") {
-            console.log("Sai id");
-            return res.status(500).send({
-                code: 1004,
-                message: "Parameter value is invalid"
-            });
-        }
-        console.log(err);
-        res.status(400).send({
-            code: 1001,
-            message: "Can not connect to DB"
+            })
         });
+    } catch (err) {
+        console.log(err);
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 });
 
