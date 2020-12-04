@@ -1,3 +1,4 @@
+const convertString = require('../utils/convertString');
 var responseError = {
     OK: {
         statusCode: 200,
@@ -139,16 +140,22 @@ function setAndSendResponse(res, responseError) {
     return res.status(responseError.statusCode).send(responseError.body);
 }
 
-function callRes(res, responseErrorName, data = {}) {
-  if (responseErrorName != responseError.OK)
-    return res.status(responseErrorName.statusCode).send(responseErrorName.body);
+function callRes(res, responseErrorName, data = null) {
+  if (responseErrorName != responseError.OK){
+    let x = {
+      code: responseErrorName.body.code,
+      message: responseErrorName.body.message 
+    }
+    if (data) x.message += ': ' + data.toString();
+    return res.status(responseErrorName.statusCode).send(convertString(x));
+  }
   else {
     let x = {
       code: responseErrorName.body.code,
       message: responseErrorName.body.message,
       data: data 
     }
-    return res.status(responseErrorName.statusCode).send(x);
+    return res.status(responseErrorName.statusCode).send(convertString(x));
   }
 }
 
