@@ -18,12 +18,13 @@ const postSchema = new Schema({
     },
     // time when post is created
     created: {
-        type: Date,
-        default: Date.now()
+        type: Number,
+        default: Math.floor(Date.now() / 1000)
     },
     // time when post is modified
-    modified: {
-        type: Date
+    modified:  {
+        type: Number,
+        default: Math.floor(Date.now() / 1000)
     },
     // number people liked post
     like: {
@@ -43,14 +44,24 @@ const postSchema = new Schema({
         ref: 'comments'
     }],
     image: [{
+        filename: {
+            type: String
+        },
         url: {
             type: String
         }
     }],
     video: {
+        filename: {
+            type: String
+        },
         url: {
             type: String
         }
-    }
+    },
+    reports_post: [{
+        type: Schema.Types.ObjectId,
+        ref: 'reports_post'
+    }]
 });
 module.exports = mongoose.model('posts', postSchema);

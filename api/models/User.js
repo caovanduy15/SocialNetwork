@@ -9,8 +9,6 @@ const UserSchema = new Schema({
         type: String,
         required: true,
     },
-    passwordResetToken: String,
-    passwordResetTokenExpiry: Date,
     dateLogin: {
         type: Date
     },
@@ -22,10 +20,6 @@ const UserSchema = new Schema({
     password: {
         type: String,
         required: true,
-    },
-    registerDate: {
-        type: Date,
-        default: Date.now
     },
     verifyCode: {
         type: Number,
@@ -68,8 +62,32 @@ const UserSchema = new Schema({
     friendRequestSent: [{
       type: Schema.Types.ObjectId,
       ref: 'users',
-    }]
-
+    }],
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    description: {
+      type: String,
+      default: "chưa có mô tả"
+    },
+    coverImage: {
+        url: {
+          type: String
+      }
+    },
+    address: {
+      type: String
+    },
+    city: { 
+      type: String
+    },
+    country: {
+      type: String
+    },
+    link: {
+      type: String
+    }
 })
 
-module.exports = User = mongoose.model('users', UserSchema);
+module.exports = mongoose.model('users', UserSchema);
