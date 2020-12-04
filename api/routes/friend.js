@@ -153,16 +153,7 @@ router.post('/set_request_friend', verify, async (req, res) => {
   res.json({ code, message, data })
 })
 
-// @route  POST it4788/friend/set_accept_friend
-// @access Public
-// Example: Use Postman
-// URL: http://127.0.0.1:5000/it4788/friend/set_accept_friend
-// BODY:
-// {
-//   "token": "xxxxx",
-//   "user_id" : "gh98082",
-//   "is_accept": 0,
-// }
+
 
 router.post("/set_block", verify, async(req, res) => {
     let code, message;
@@ -214,50 +205,65 @@ router.post("/set_block", verify, async(req, res) => {
     res.json({ code, message });
 });
 
+// @route  POST it4788/friend/set_accept_friend
+// @access Public
+// Example: Use Postman
+// URL: http://127.0.0.1:5000/it4788/friend/set_accept_friend
+// BODY:
+// {
+//   "token": "xxxxx",
+//   "user_id" : "gh98082",
+//   "is_accept": 0,
+// }
 router.post('/set_accept_friend', verify, async (req, res) => {
-  let code, message;
   let thisUser, sentUser;
 
   // user_id là id của người nhận request friend
   // is_accept : 0 là từ chối, 1 là đồng ý
-  let { token, user_id, is_accept } = req.body;
+  let { user_id, is_accept } = req.body;
+  if ( user_id === undefined|| is_accept === undefined) 
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'user_id, is_accept');
+  if (!checkInput.checkIsInteger (is_accept))
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'is_accept');
+  is_accept = parseInt(is_accept, 10);
+  if (is_accept != 0 && is_accept != 1) 
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'is_accept');
   let id = req.user.id;
   if (id == user_id) {
-    code = 1004;
-    message = "invalid parameter";
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID,'user_id');
   } else {
     try {
       thisUser = await User.findById(id);
+      if(!thisUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'thisUser');
       sentUser = await User.findById(user_id);
+      if(!sentUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'sentUser');
       if (is_accept == 0) {
         // xóa req bên nhận
-
         let indexExist = thisUser.friendRequestReceived.findIndex(element =>
           element.fromUser._id.equals(sentUser._id));
+        if (indexExist < 0) return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
         thisUser.friendRequestReceived.splice(indexExist, 1);
-
         // xóa req bên gửi
         let indexExist1 = sentUser.friendRequestSent.findIndex(element =>
           element._id.equals(thisUser._id));
-
         sentUser.friendRequestSent.splice(indexExist1, 1);
         // save
         thisUser = await thisUser.save();
         sentUser = await sentUser.save();
-        code = 1000;
-        message = "OK";
+        return callRes(res, responseError.OK);
       } else if (is_accept == 1) {
-        // xóa req bên nhận
         let currentTime = Date.now();
+        // bỏ block 
+
+        // xóa req bên nhận
         let indexExist = thisUser.friendRequestReceived.findIndex(element =>
           element.fromUser._id.equals(sentUser._id));
+        if (indexExist < 0) return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
         thisUser.friendRequestReceived.splice(indexExist, 1);
-
         // thêm bạn bên nhận
         let indexExist2 = thisUser.friends.findIndex(element =>
           element.friend._id.equals(sentUser._id))
         if (indexExist2 < 0) thisUser.friends.push({ friend: sentUser._id, createdAt: currentTime });
-
         // thêm bạn bên gửi
         let indexExist3 = sentUser.friends.findIndex(element =>
           element.friend._id.equals(thisUser._id))
@@ -265,26 +271,17 @@ router.post('/set_accept_friend', verify, async (req, res) => {
         // xóa req bên gửi
         let indexExist1 = sentUser.friendRequestSent.findIndex(element =>
           element._id.equals(thisUser._id));
-
         sentUser.friendRequestSent.splice(indexExist1, 1);
         // save
         thisUser = await thisUser.save();
         sentUser = await sentUser.save();
-        code = 1000;
-        message = "OK";
-      } else {
-        code = 1004;
-        message = "invalid parameter";
+        return callRes(res, responseError.OK);
       }
 
     } catch (error) {
-      code = 1005;
-      message = "Unknown Error";
+      return callRes(res, responseError.UNKNOWN_ERROR, error.message);
     }
-
   }
-
-  res.json({ code, message });
 })
 
 
@@ -378,6 +375,7 @@ router.post('/get_user_friends', verify, async (req, res) => {
       friendInfor.username = x.friend.username;
       friendInfor.avatar = x.friend.avatar;
       friendInfor.created = validTime.timeToSecond(x.createdAt) ;
+      
       if (!thisUser._id.equals(x.friend._id))
         if (thisUser.friends.length > 0 && x.friend.friends.length > 0) {
           friendInfor.same_friends = countSameFriend(thisUser.friends, x.friend.friends);
