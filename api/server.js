@@ -26,6 +26,7 @@ app.use('/it4788/search', require('./routes/search'));
 app.use('/it4788/comment',require('./routes/comments'));
 app.use('/it4788/like',require('./routes/likes'));
 app.use('/it4788/friend', require('./routes/friend'));
+app.use('/it4788/user', require('./routes/user'));
 app.use('/it4788/chat', require('./routes/chat'));
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`Server is running on port ${port}`))
