@@ -28,4 +28,4 @@ const checkIsInteger = x => {
   else return false;
 }
 
-module.exports = { checkUserPassword, checkPhoneNumber, checkNotNegativeInteger};
+module.exports = { checkUserPassword, checkPhoneNumber, checkNotNegativeInteger, checkIsInteger};

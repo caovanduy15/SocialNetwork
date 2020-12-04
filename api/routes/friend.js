@@ -6,6 +6,7 @@ const verify = require('../utils/verifyToken');
 const convertString = require('../utils/convertString');
 const {responseError, callRes} = require('../response/error');
 const checkInput = require('../utils/validInput');
+const validTime = require('../utils/validTime');
 // @route  POST it4788/friend/get_requested_friends
 // @access Public
 // Example: Use Postman
@@ -30,10 +31,11 @@ router.post('/get_requested_friends', verify, async (req, res) => {
   let thisUser;
 
   // check input data
-  if (!index || !count) return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+  if ( index === undefined|| count === undefined) 
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
   if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID);
-  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');
+  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, ': index, count');
 
   try {
     thisUser = await User.findById(id)
@@ -64,7 +66,7 @@ router.post('/get_requested_friends', verify, async (req, res) => {
       if (thisUser.friends.length != 0 && sentUser.friends.length != 0) {
         newElement.same_friends = countSameFriend(thisUser.friends, sentUser.friends);
       }
-      newElement.created = thisUser.friendRequestReceived[i].lastCreated;
+      newElement.created = validTime.timeToSecond(thisUser.friendRequestReceived[i].lastCreated);
       data.request.push(newElement);
     }
     if (data.request.length == 0) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
@@ -285,17 +287,7 @@ router.post('/set_accept_friend', verify, async (req, res) => {
   res.json({ code, message });
 })
 
-// @route  POST it4788/friend/get_user_friends
-// @access Public
-// Example: Use Postman
-// URL: http://127.0.0.1:5000/it4788/friend/get_user_friends
-// BODY:
-// {
-//   "token": "xxxxx",
-//   "user_id" : "gh98082",
-//   "index": 4,
-//   "count": 10
-// }
+
 router.post("/get_list_blocks", verify, async(req, res) => {
     let { token, index, count } = req.body;
     let id = req.user.id;
@@ -324,26 +316,46 @@ router.post("/get_list_blocks", verify, async(req, res) => {
     message = "Successfully get block list";
     res.json({ code, message, data});
 });
+
+// @route  POST it4788/friend/get_user_friends
+// @access Public
+// Example: Use Postman
+// URL: http://127.0.0.1:5000/it4788/friend/get_user_friends
+// BODY:
+// {
+//   "token": "xxxxx",
+//   "user_id" : "gh98082",
+//   "index": 4,
+//   "count": 10
+// }
 router.post('/get_user_friends', verify, async (req, res) => {
   // input
-  let { user_id, token, index, count } = req.body;
+  let { user_id, index, count } = req.body;
   // user id from token
   let id = req.user.id;
-  // output
-  let code, message;
+
   let data = {
     friends: [],
     total: 0
   }
+
+  // check input data
+  if (!index || !count) return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+  if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID);
+  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID);
+  if (user_id && typeof user_id !== 'string') return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID);
 
   // var
   let thisUser, targetUser;
 
   try {
     thisUser = await User.findById(id).select({ "friends": 1 });
+    if (!targetUser) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID)
     // console.log(thisUser);
     if (user_id && user_id != id) {
       targetUser = await User.findById(user_id).select({ "friends": 1 });
+      if (!targetUser) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID)
     } else {
       targetUser = thisUser;
     }
