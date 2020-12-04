@@ -214,6 +214,8 @@ router.post('/set_accept_friend', verify, async (req, res) => {
   let { user_id, is_accept } = req.body;
   if ( user_id === undefined|| is_accept === undefined) 
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'user_id, is_accept');
+  if (typeof user_id != 'string')
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
   if (!checkInput.checkIsInteger (is_accept))
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'is_accept');
   is_accept = parseInt(is_accept, 10);
@@ -326,7 +328,8 @@ router.post('/get_user_friends', verify, async (req, res) => {
     friends: [],
     total: 0
   }
-
+  if (user_id && typeof user_id != 'string')
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
   // check input data
   if ( index === undefined|| count === undefined) 
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
