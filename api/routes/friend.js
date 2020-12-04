@@ -7,6 +7,7 @@ const convertString = require('../utils/convertString');
 const {responseError, callRes} = require('../response/error');
 const checkInput = require('../utils/validInput');
 const validTime = require('../utils/validTime');
+const MAX_FRIEND_NUMBER = 500;
 // @route  POST it4788/friend/get_requested_friends
 // @access Public
 // Example: Use Postman
@@ -89,68 +90,58 @@ router.post('/get_requested_friends', verify, async (req, res) => {
 //   "user_id" : "gh98082"
 // }
 router.post('/set_request_friend', verify, async (req, res) => {
-  let code, message;
   let data = {
     requested_friends: null // số người đang đươc tài khoản hiện tại gửi request friend
   }
 
   let { user_id } = req.body; // user_id là id của người nhận request friend
+  if (user_id === undefined) 
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'user_id');
+  if (typeof user_id != 'string')
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
   let id = req.user.id;
   let targetUser, thisUser;
   if (id == user_id) {
-    code = 1004;
-    message = "invalid parameter";
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'user_id');
   } else {
     try {
       targetUser = await User.findById(user_id);
+      if (!targetUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'targetUser');
       thisUser = await User.findById(id);
-
+      if(!thisUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'thisUser');
+      if(thisUser.friends.length >= MAX_FRIEND_NUMBER) 
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'out of Max Friends');
       let indexExist = thisUser.friends.findIndex(element => element.friend._id.equals(targetUser._id));
-      if (indexExist < 0) {
-        thisUser.friendRequestSent.push();
-
-        // add new element to sent request
-        let addElement = { "_id": targetUser._id };
-        let isExisted = thisUser.friendRequestSent.findIndex(element => element._id.equals(addElement._id));
-        if (isExisted < 0) {
-          thisUser.friendRequestSent.push(addElement);
-          thisUser = await thisUser.save();
-        }
-
-        // add new or update exist element of request received
-        let addElement1 = { fromUser: { "_id": thisUser._id } };
-        let isExisted1 = targetUser.friendRequestReceived.findIndex(element =>
-          element.fromUser._id.equals(addElement1.fromUser._id));
-
-        if (isExisted1 < 0) {
-          targetUser.friendRequestReceived.push(addElement1);
-        } else {
-          let currentTime = Date.now();
-          targetUser.friendRequestReceived[isExisted1].lastCreated = currentTime;
-        }
-        targetUser = await targetUser.save();
-        code = 1000;
-        message = "OK";
-      } else {
-        code = 1010;
-        message = "you two are friend already!!"
+      if (indexExist >= 0) 
+        return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER, 'you two are friend');
+      // indexExist < 0, chưa là bạn
+      // add new element to sent request
+      let addElement = { "_id": targetUser._id };
+      let isExisted = thisUser.friendRequestSent.findIndex(element => element._id.equals(addElement._id));
+      if (isExisted < 0) {
+        thisUser.friendRequestSent.push(addElement);
+        thisUser = await thisUser.save();
       }
       data.requested_friends = thisUser.friendRequestSent.length;
 
-    } catch (err) {
-      if (!targetUser) {
-        code = 1004;
-        message = "not found user_id";
-      }
-      else {
-        code = 1005;
-        message = "Unknown error";
-      }
+      // add new or update exist element of request received
+      let addElement1 = { fromUser: { "_id": thisUser._id } };
+      let isExisted1 = targetUser.friendRequestReceived.findIndex(element =>
+        element.fromUser._id.equals(addElement1.fromUser._id));
 
+      if (isExisted1 < 0) {
+        targetUser.friendRequestReceived.push(addElement1);
+      } else {
+        let currentTime = Date.now();
+        targetUser.friendRequestReceived[isExisted1].lastCreated = currentTime;
+      }
+      targetUser = await targetUser.save();
+      return callRes(res, responseError.OK, data);
+
+    } catch (err) {
+      return callRes(res, responseError.UNKNOWN_ERROR, err.message);
     }
   }
-
-  res.json({ code, message, data })
 })
 
 
@@ -375,7 +366,7 @@ router.post('/get_user_friends', verify, async (req, res) => {
       friendInfor.username = x.friend.username;
       friendInfor.avatar = x.friend.avatar;
       friendInfor.created = validTime.timeToSecond(x.createdAt) ;
-      
+
       if (!thisUser._id.equals(x.friend._id))
         if (thisUser.friends.length > 0 && x.friend.friends.length > 0) {
           friendInfor.same_friends = countSameFriend(thisUser.friends, x.friend.friends);
