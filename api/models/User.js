@@ -14,7 +14,7 @@ const UserSchema = new Schema({
     },
     registerDate: {
       type: Date,
-      default: Date.now()
+      default: Date.now
     },
     avatar: {
         url: {
