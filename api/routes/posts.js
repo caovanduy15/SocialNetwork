@@ -113,11 +113,11 @@ router.post('/get_list_videos', async (req, res) => {
                 comment: post.comments.length.toString(),
                 is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
                 state: post.status,
-                author: {
+                author: post.author ? {
                     id: post.author._id,
                     username: post.author.name,
                     avatar: post.author.avatar
-                }
+                } : undefined,
             }
         }),
         new_items: index_last_id.toString(),
@@ -210,11 +210,11 @@ router.post('/get_list_posts', async (req, res) => {
                 comment: post.comments.length.toString(),
                 is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
                 state: post.status,
-                author: {
+                author: post.author ? {
                     id: post.author._id,
                     username: post.author.name,
                     avatar: post.author.avatar
-                }
+                } : undefined,
             }
         }),
         new_items: index_last_id.toString(),
@@ -276,11 +276,11 @@ router.post('/get_post', async (req, res) => {
                         url: post.video.url,
                         thumb: post.video.url ? "null" : undefined
                     },
-                    author: {
+                    author: post.author ? {
                         id: post.author._id,
                         name: post.author.name,
                         avatar: post.author.avatar
-                    },
+                    } : undefined,
                     state: post.status
                 }
               });

@@ -83,11 +83,11 @@ router.post('/set_comment', verify, async (req, res) => {
                 id: savedComment._id,
                 comment: savedComment.comment,
                 created: savedComment.created.toString(),
-                poster: {
+                poster: poster ? {
                     id: poster._id,
                     name: poster.name,
                     avatar: poster.avatar
-                }
+                } : undefined,
             },
             is_blocked: "null"
         });
@@ -156,11 +156,11 @@ router.post('/get_comment', verify, async (req, res) => {
                     id: comment._id,
                     comment: comment.comment,
                     created: comment.created.toString(),
-                    poster: {
+                    poster: comment.poster ? {
                         id: comment.poster._id,
                         name: comment.poster.name,
                         avatar: comment.poster.avatar
-                    },
+                    } : undefined,
                     is_blocked: "null"
                 };
             })
