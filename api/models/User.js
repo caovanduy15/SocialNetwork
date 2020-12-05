@@ -9,10 +9,12 @@ const UserSchema = new Schema({
         type: String,
         required: true,
     },
-    passwordResetToken: String,
-    passwordResetTokenExpiry: Date,
     dateLogin: {
         type: Date
+    },
+    registerDate: {
+      type: Date,
+      default: Date.now
     },
     avatar: {
         url: {
@@ -22,10 +24,6 @@ const UserSchema = new Schema({
     password: {
         type: String,
         required: true,
-    },
-    registerDate: {
-        type: Date,
-        default: Date.now
     },
     verifyCode: {
         type: Number,
@@ -96,4 +94,4 @@ const UserSchema = new Schema({
     }
 })
 
-module.exports = User = mongoose.model('users', UserSchema);
+module.exports = mongoose.model('users', UserSchema);

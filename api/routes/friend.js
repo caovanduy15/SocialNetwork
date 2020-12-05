@@ -3,7 +3,11 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const verify = require('../utils/verifyToken');
-
+const convertString = require('../utils/convertString');
+const {responseError, callRes} = require('../response/error');
+const checkInput = require('../utils/validInput');
+const validTime = require('../utils/validTime');
+const MAX_FRIEND_NUMBER = 500;
 // @route  POST it4788/friend/get_requested_friends
 // @access Public
 // Example: Use Postman
@@ -19,15 +23,20 @@ const verify = require('../utils/verifyToken');
 //   "count": 10
 // }
 router.post('/get_requested_friends', verify, async (req, res) => {
-  let { token, index, count } = req.body;
+  let { index, count } = req.body;
   let id = req.user.id;
-  let code, message;
   let data = {
     request: [],
     total: 0
   };
   let thisUser;
 
+  // check input data
+  if ( index === undefined|| count === undefined) 
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
+  if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');
+  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, ': index, count');
 
   try {
     thisUser = await User.findById(id)
@@ -58,20 +67,16 @@ router.post('/get_requested_friends', verify, async (req, res) => {
       if (thisUser.friends.length != 0 && sentUser.friends.length != 0) {
         newElement.same_friends = countSameFriend(thisUser.friends, sentUser.friends);
       }
-      newElement.created = thisUser.friendRequestReceived[i].lastCreated;
+      newElement.created = validTime.timeToSecond(thisUser.friendRequestReceived[i].lastCreated);
       data.request.push(newElement);
     }
+    if (data.request.length == 0) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
     thisUser = await User.findById(id);
     data.total = thisUser.friendRequestReceived.length;
-    code = 1000;
-    message = "OK";
+    return callRes(res, responseError.OK, data);
   } catch (error) {
-    code = 1005;
-    message = error.message;
+    return callRes(res, responseError.UNKNOWN_ERROR);
   }
-
-
-  res.json({ code, message, data });
 })
 
 
@@ -85,80 +90,61 @@ router.post('/get_requested_friends', verify, async (req, res) => {
 //   "user_id" : "gh98082"
 // }
 router.post('/set_request_friend', verify, async (req, res) => {
-  let code, message;
   let data = {
     requested_friends: null // số người đang đươc tài khoản hiện tại gửi request friend
   }
 
-  let { token, user_id } = req.body; // user_id là id của người nhận request friend
+  let { user_id } = req.body; // user_id là id của người nhận request friend
+  if (user_id === undefined) 
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'user_id');
+  if (typeof user_id != 'string')
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
   let id = req.user.id;
   let targetUser, thisUser;
   if (id == user_id) {
-    code = 1004;
-    message = "invalid parameter";
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'user_id');
   } else {
     try {
       targetUser = await User.findById(user_id);
+      if (!targetUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'targetUser');
       thisUser = await User.findById(id);
-
+      if(!thisUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'thisUser');
+      if(thisUser.friends.length >= MAX_FRIEND_NUMBER) 
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'out of Max Friends');
       let indexExist = thisUser.friends.findIndex(element => element.friend._id.equals(targetUser._id));
-      if (indexExist < 0) {
-        thisUser.friendRequestSent.push();
-
-        // add new element to sent request
-        let addElement = { "_id": targetUser._id };
-        let isExisted = thisUser.friendRequestSent.findIndex(element => element._id.equals(addElement._id));
-        if (isExisted < 0) {
-          thisUser.friendRequestSent.push(addElement);
-          thisUser = await thisUser.save();
-        }
-
-        // add new or update exist element of request received
-        let addElement1 = { fromUser: { "_id": thisUser._id } };
-        let isExisted1 = targetUser.friendRequestReceived.findIndex(element =>
-          element.fromUser._id.equals(addElement1.fromUser._id));
-
-        if (isExisted1 < 0) {
-          targetUser.friendRequestReceived.push(addElement1);
-        } else {
-          let currentTime = Date.now();
-          targetUser.friendRequestReceived[isExisted1].lastCreated = currentTime;
-        }
-        targetUser = await targetUser.save();
-        code = 1000;
-        message = "OK";
-      } else {
-        code = 1010;
-        message = "you two are friend already!!"
+      if (indexExist >= 0) 
+        return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER, 'you two are friend');
+      // indexExist < 0, chưa là bạn
+      // add new element to sent request
+      let addElement = { "_id": targetUser._id };
+      let isExisted = thisUser.friendRequestSent.findIndex(element => element._id.equals(addElement._id));
+      if (isExisted < 0) {
+        thisUser.friendRequestSent.push(addElement);
+        thisUser = await thisUser.save();
       }
       data.requested_friends = thisUser.friendRequestSent.length;
 
-    } catch (err) {
-      if (!targetUser) {
-        code = 1004;
-        message = "not found user_id";
-      }
-      else {
-        code = 1005;
-        message = "Unknown error";
-      }
+      // add new or update exist element of request received
+      let addElement1 = { fromUser: { "_id": thisUser._id } };
+      let isExisted1 = targetUser.friendRequestReceived.findIndex(element =>
+        element.fromUser._id.equals(addElement1.fromUser._id));
 
+      if (isExisted1 < 0) {
+        targetUser.friendRequestReceived.push(addElement1);
+      } else {
+        let currentTime = Date.now();
+        targetUser.friendRequestReceived[isExisted1].lastCreated = currentTime;
+      }
+      targetUser = await targetUser.save();
+      return callRes(res, responseError.OK, data);
+
+    } catch (err) {
+      return callRes(res, responseError.UNKNOWN_ERROR, err.message);
     }
   }
-
-  res.json({ code, message, data })
 })
 
-// @route  POST it4788/friend/set_accept_friend
-// @access Public
-// Example: Use Postman
-// URL: http://127.0.0.1:5000/it4788/friend/set_accept_friend
-// BODY:
-// {
-//   "token": "xxxxx",
-//   "user_id" : "gh98082",
-//   "is_accept": 0,
-// }
+
 
 router.post("/set_block", verify, async(req, res) => {
     let code, message;
@@ -210,50 +196,67 @@ router.post("/set_block", verify, async(req, res) => {
     res.json({ code, message });
 });
 
+// @route  POST it4788/friend/set_accept_friend
+// @access Public
+// Example: Use Postman
+// URL: http://127.0.0.1:5000/it4788/friend/set_accept_friend
+// BODY:
+// {
+//   "token": "xxxxx",
+//   "user_id" : "gh98082",
+//   "is_accept": 0,
+// }
 router.post('/set_accept_friend', verify, async (req, res) => {
-  let code, message;
   let thisUser, sentUser;
 
   // user_id là id của người nhận request friend
   // is_accept : 0 là từ chối, 1 là đồng ý
-  let { token, user_id, is_accept } = req.body;
+  let { user_id, is_accept } = req.body;
+  if ( user_id === undefined|| is_accept === undefined) 
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'user_id, is_accept');
+  if (typeof user_id != 'string')
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
+  if (!checkInput.checkIsInteger (is_accept))
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'is_accept');
+  is_accept = parseInt(is_accept, 10);
+  if (is_accept != 0 && is_accept != 1) 
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'is_accept');
   let id = req.user.id;
   if (id == user_id) {
-    code = 1004;
-    message = "invalid parameter";
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID,'user_id');
   } else {
     try {
       thisUser = await User.findById(id);
+      if(!thisUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'thisUser');
       sentUser = await User.findById(user_id);
+      if(!sentUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'sentUser');
       if (is_accept == 0) {
         // xóa req bên nhận
-
         let indexExist = thisUser.friendRequestReceived.findIndex(element =>
           element.fromUser._id.equals(sentUser._id));
+        if (indexExist < 0) return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
         thisUser.friendRequestReceived.splice(indexExist, 1);
-
         // xóa req bên gửi
         let indexExist1 = sentUser.friendRequestSent.findIndex(element =>
           element._id.equals(thisUser._id));
-
         sentUser.friendRequestSent.splice(indexExist1, 1);
         // save
         thisUser = await thisUser.save();
         sentUser = await sentUser.save();
-        code = 1000;
-        message = "OK";
+        return callRes(res, responseError.OK);
       } else if (is_accept == 1) {
-        // xóa req bên nhận
         let currentTime = Date.now();
+        // bỏ block 
+
+        // xóa req bên nhận
         let indexExist = thisUser.friendRequestReceived.findIndex(element =>
           element.fromUser._id.equals(sentUser._id));
+        if (indexExist < 0) return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
         thisUser.friendRequestReceived.splice(indexExist, 1);
-
         // thêm bạn bên nhận
         let indexExist2 = thisUser.friends.findIndex(element =>
           element.friend._id.equals(sentUser._id))
         if (indexExist2 < 0) thisUser.friends.push({ friend: sentUser._id, createdAt: currentTime });
-
         // thêm bạn bên gửi
         let indexExist3 = sentUser.friends.findIndex(element =>
           element.friend._id.equals(thisUser._id))
@@ -261,39 +264,20 @@ router.post('/set_accept_friend', verify, async (req, res) => {
         // xóa req bên gửi
         let indexExist1 = sentUser.friendRequestSent.findIndex(element =>
           element._id.equals(thisUser._id));
-
         sentUser.friendRequestSent.splice(indexExist1, 1);
         // save
         thisUser = await thisUser.save();
         sentUser = await sentUser.save();
-        code = 1000;
-        message = "OK";
-      } else {
-        code = 1004;
-        message = "invalid parameter";
+        return callRes(res, responseError.OK);
       }
 
     } catch (error) {
-      code = 1005;
-      message = "Unknown Error";
+      return callRes(res, responseError.UNKNOWN_ERROR, error.message);
     }
-
   }
-
-  res.json({ code, message });
 })
 
-// @route  POST it4788/friend/get_user_friends
-// @access Public
-// Example: Use Postman
-// URL: http://127.0.0.1:5000/it4788/friend/get_user_friends
-// BODY:
-// {
-//   "token": "xxxxx",
-//   "user_id" : "gh98082",
-//   "index": 4,
-//   "count": 10
-// }
+
 router.post("/get_list_blocks", verify, async(req, res) => {
     let { token, index, count } = req.body;
     let id = req.user.id;
@@ -322,26 +306,49 @@ router.post("/get_list_blocks", verify, async(req, res) => {
     message = "Successfully get block list";
     res.json({ code, message, data});
 });
+
+// @route  POST it4788/friend/get_user_friends
+// @access Public
+// Example: Use Postman
+// URL: http://127.0.0.1:5000/it4788/friend/get_user_friends
+// BODY:
+// {
+//   "token": "xxxxx",
+//   "user_id" : "gh98082",
+//   "index": 4,
+//   "count": 10
+// }
 router.post('/get_user_friends', verify, async (req, res) => {
   // input
-  let { user_id, token, index, count } = req.body;
+  let { user_id, index, count } = req.body;
   // user id from token
   let id = req.user.id;
-  // output
-  let code, message;
+
   let data = {
     friends: [],
     total: 0
   }
+  if (user_id && typeof user_id != 'string')
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
+  // check input data
+  if ( index === undefined|| count === undefined) 
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
+  if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');
+  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, ': index, count');
 
   // var
   let thisUser, targetUser;
 
   try {
     thisUser = await User.findById(id).select({ "friends": 1 });
+    if (!thisUser) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'thisUser')
     // console.log(thisUser);
     if (user_id && user_id != id) {
       targetUser = await User.findById(user_id).select({ "friends": 1 });
+      if (!targetUser) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'targetUser');
+      // check block here
+
     } else {
       targetUser = thisUser;
     }
@@ -361,25 +368,20 @@ router.post('/get_user_friends', verify, async (req, res) => {
       friendInfor.id = x.friend._id.toString();
       friendInfor.username = x.friend.username;
       friendInfor.avatar = x.friend.avatar;
-      friendInfor.created = x.createdAt;
+      friendInfor.created = validTime.timeToSecond(x.createdAt) ;
+
       if (!thisUser._id.equals(x.friend._id))
         if (thisUser.friends.length > 0 && x.friend.friends.length > 0) {
           friendInfor.same_friends = countSameFriend(thisUser.friends, x.friend.friends);
         }
       data.friends.push(friendInfor);
     }
+    if (data.friends.length == 0) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'friends');
     data.total = targetUser.friends.length;
+    return callRes(res, responseError.OK, data);
   } catch (error) {
-    if (user_id && !targetUser) {
-      code = 1004;
-      message = "invalid parameter";
-    } else {
-      code = 1005;
-      message = error.message;
-    }
+    return callRes(res, responseError.UNKNOWN_ERROR, error.message);
   }
-
-  res.json({ code, message, data});
 })
 
 // count same friend between 2 array x, y
