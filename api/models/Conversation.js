@@ -28,6 +28,10 @@ const ConversationSchema = new Schema({
         read: {
             type: Boolean,
             default: false
+        },
+        created: {
+            type: Number,
+            default: Math.floor(Date.now() / 1000)
         }
     }]
 });
