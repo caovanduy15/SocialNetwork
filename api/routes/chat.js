@@ -34,6 +34,73 @@ router.post('/add_dialog', async (req, res) => {
     res.json({ message: "OK" });
 });
 
+
+router.post('/get_list_conversation', verify, async (req, res) => {
+    let code, message;
+    let id = req.user.id;
+    let { index, count } = req.body;
+    var numNewMessage = 0;
+    let data = [];
+    if (req.body.index === undefined || req.body.count === undefined){
+        code = "1002";
+        message = "Please enter all fields";
+        res.json({ code, message });
+        return;
+    }
+    var conversations = [];
+    let conversationFirst = await Conversation.find({ firstUser: id });
+    let conversationSecond = await Conversation.find({ secondUser: id });
+    for (conversation in conversationFirst){
+        conversations.push(conversationFirst[conversation]);
+    }
+    for (conversation in conversationSecond){
+        conversations.push(conversationSecond[conversation]);
+    }
+    //console.log(conversations);
+    let endFor = conversations.length < index + count ? conversations.length : index + count;
+    for (let i = index; i < endFor; i++){
+        let x = conversations[i];
+        let conversationInfo = {
+            id: null,
+            partner: {
+                id: null,
+                username: null,
+                avatar: null
+            },
+            lastMessage: {
+                message: null,
+                created: null,
+                unread: null
+            }
+        }
+        let partner, lastDialog;
+        if (x.firstUser == id){
+            partner = await User.findById(x.secondUser);
+        }
+        else{
+            partner = await User.findById(x.firstUser);
+        }
+        lastDialog = x.dialog[x.dialog.length - 1];
+        conversationInfo.id = x.conversationId;
+        conversationInfo.partner.id = partner._id;
+        conversationInfo.partner.username = partner.name;
+        conversationInfo.partner.avatar = partner.avatar;
+        conversationInfo.lastMessage.message = lastDialog.content;
+        conversationInfo.lastMessage.created = lastDialog.created;
+        conversationInfo.lastMessage.unread = !lastDialog.read;
+        for (dialog in x.dialog){
+            if (x.dialog[dialog].read == false){
+                numNewMessage += 1;
+                break;
+            }
+        }
+        data.push(conversationInfo);
+    }
+    code = "1000";
+    message = "Successfully get list of conversations";
+    res.json({ code, message, data, numNewMessage });
+});
+
 router.post('/get_conversation', verify, async (req, res) => {
     let code, message;
     let id = req.user.id;
