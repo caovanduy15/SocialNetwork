@@ -34,6 +34,193 @@ router.post('/add_dialog', async (req, res) => {
     res.json({ message: "OK" });
 });
 
+router.post('/delete_conversation', verify, async (req, res) => {
+    let code, message;
+    let id = req.user.id;
+    if (req.body.partnerId){
+        let targetConversation;
+        let { partnerId } = req.body;
+        let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
+        let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
+        if (targetConversation1){
+            if (targetConversation1.secondUser == id){
+                targetConversation = targetConversation1;
+            }
+        }
+        else if (targetConversation2){
+            if (targetConversation2.firstUser == id){
+                targetConversation = targetConversation2;
+            }
+        }
+        else {
+            code = "9995";
+            message = "Conversation not existed";
+            res.json({ code, message });
+            return;
+        }
+        await Conversation.deleteOne({ _id: targetConversation._id });
+        code = "1000";
+        message = "Successfully delete conversation";
+    }
+    else if (req.body.conversationId){
+        let targetConversation;
+        let { conversationId } = req.body;
+        targetConversation = await Conversation.findOne({ conversationId: conversationId });
+        if (!targetConversation){
+            code = "9995";
+            message = "Conversation not existed";
+            res.json({ code, message });
+            return;
+        }
+        await Conversation.deleteOne({ _id: targetConversation._id });
+        code = "1000";
+        message = "Successfully delete message";
+    }
+    else{
+        code = "1002";
+        message = "Please enter all field";
+        res.json({ code, message });
+        return;
+    }
+    res.json({ code, message });
+});
+
+router.post('/delete_message', verify, async (req, res) => {
+    let code, message;
+    let id = req.user.id;
+    if (req.body.partnerId){
+        let targetConversation;
+        let { messageId, partnerId } = req.body;
+        let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
+        let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
+        if (targetConversation1){
+            if (targetConversation1.secondUser == id){
+                targetConversation = targetConversation1;
+            }
+        }
+        else if (targetConversation2){
+            if (targetConversation2.firstUser == id){
+                targetConversation = targetConversation2;
+            }
+        }
+        else {
+            code = "9995";
+            message = "Conversation not existed";
+            res.json({ code, message });
+            return;
+        }
+        for (dialog in targetConversation.dialog){
+            if (targetConversation.dialog[dialog].dialogId == messageId){
+                if (targetConversation.dialog[dialog].sender == id){
+                    targetConversation.dialog.splice(dialog, 1);
+                    break;
+                }
+                else{
+                    code = "1004";
+                    message = "This is not your message";
+                    res.json({ code, message });
+                    return;
+                }
+            }
+        }
+        targetConversation = await targetConversation.save();
+        code = "1000";
+        message = "Successfully delete message";
+    }
+    else if (req.body.conversationId){
+        let targetConversation;
+        let { messageId, conversationId } = req.body;
+        targetConversation = await Conversation.findOne({ conversationId: conversationId });
+        if (!targetConversation){
+            code = "9995";
+            message = "Conversation not existed";
+            res.json({ code, message });
+            return;
+        }
+        for (dialog in targetConversation.dialog){
+            if (targetConversation.dialog[dialog].dialogId == messageId){
+                if (targetConversation.dialog[dialog].sender == id){
+                    targetConversation.dialog.splice(dialog, 1);
+                    break;
+                }
+                else{
+                    code = "1004";
+                    message = "This is not your message";
+                    res.json({ code, message });
+                    return;
+                }
+            }
+        }
+        targetConversation = await targetConversation.save();
+        code = "1000";
+        message = "Successfully delete message";
+    }
+    else{
+        code = "1002";
+        message = "Please enter all field";
+        res.json({ code, message });
+        return;
+    }
+    res.json({ code, message });
+});
+
+router.post('/set_read_message', verify, async (req, res) => {
+    let code, message;
+    let id = req.user.id;
+    if (req.body.partnerId){
+        let targetConversation;
+        let { partnerId } = req.body;
+        let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
+        let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
+        if (targetConversation1){
+            if (targetConversation1.secondUser == id){
+                targetConversation = targetConversation1;
+            }
+        }
+        else if (targetConversation2){
+            if (targetConversation2.firstUser == id){
+                targetConversation = targetConversation2;
+            }
+        }
+        else {
+            code = "9995";
+            message = "Conversation not existed";
+            res.json({ code, message });
+            return;
+        }
+        for (dialog in targetConversation.dialog){
+            targetConversation.dialog[dialog].read = true;
+        }
+        targetConversation = await targetConversation.save();
+        code = "1000";
+        message = "Successfully set read message";
+    }
+    else if (req.body.conversationId){
+        let targetConversation;
+        let { conversationId } = req.body;
+        targetConversation = await Conversation.findOne({ conversationId: conversationId });
+        if (!targetConversation){
+            code = "9995";
+            message = "Conversation not existed";
+            res.json({ code, message });
+            return;
+        }
+        for (dialog in targetConversation.dialog){
+            targetConversation.dialog[dialog].read = true;
+            await targetConversation.save();
+        }
+        targetConversation = await targetConversation.save();
+        code = "1000";
+        message = "Successfully set read message";
+    }
+    else{
+        code = "1002";
+        message = "Please enter all field";
+        res.json({ code, message });
+        return;
+    }
+    res.json({ code, message });
+});
 
 router.post('/get_list_conversation', verify, async (req, res) => {
     let code, message;
