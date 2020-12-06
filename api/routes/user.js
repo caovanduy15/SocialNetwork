@@ -26,7 +26,7 @@ const uploader = multer({
   storage: multer.memoryStorage(),
 });
 
-router.get('/get_user_info', verify, async (req, res) => {
+router.post ('/get_user_info', verify, async (req, res) => {
   let { user_id } = req.body;
   if (!user_id) user_id = req.user.id;
   let user;
