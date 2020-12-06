@@ -112,6 +112,9 @@ router.post('/get_list_videos', async (req, res) => {
                 like: post.likedUser.length.toString(),
                 comment: post.comments.length.toString(),
                 is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                is_blocked: is_blocked(user, post.author),
+                can_comment: "1",
+                can_edit: can_edit(user, post.author),
                 state: post.status,
                 author: post.author ? {
                     id: post.author._id,
@@ -209,6 +212,9 @@ router.post('/get_list_posts', async (req, res) => {
                 like: post.likedUser.length.toString(),
                 comment: post.comments.length.toString(),
                 is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                is_blocked: is_blocked(user, post.author),
+                can_comment: "1",
+                can_edit: can_edit(user, post.author),
                 state: post.status,
                 author: post.author ? {
                     id: post.author._id,
@@ -281,7 +287,10 @@ router.post('/get_post', async (req, res) => {
                         name: post.author.name,
                         avatar: post.author.avatar
                     } : undefined,
-                    state: post.status
+                    state: post.status,
+                    is_blocked: is_blocked(user, post.author),
+                    can_edit: can_edit(user, post.author),
+                    can_comment: "1"
                 }
               });
         } else {
@@ -296,6 +305,15 @@ router.post('/get_post', async (req, res) => {
     }
 });
 
+function is_blocked(user, author) {
+    if(user && author && author.blockedList && author.blockedList.findIndex((element) => {return element.user == user.id}) != -1) return "1";
+    return "0";
+}
+
+function can_edit(user, author) {
+    if(user && author && (user.id == author._id)) return "1";
+    return "0";
+}
 
 function uploadFile(file) {
     const newNameFile = new Date().toISOString() + file.originalname;

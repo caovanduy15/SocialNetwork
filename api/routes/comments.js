@@ -89,7 +89,7 @@ router.post('/set_comment', verify, async (req, res) => {
                     avatar: poster.avatar
                 } : undefined,
             },
-            is_blocked: "null"
+            is_blocked: is_blocked(user, comment.poster)
         });
     } catch (err) {
         console.log(err);
@@ -161,7 +161,7 @@ router.post('/get_comment', verify, async (req, res) => {
                         name: comment.poster.name,
                         avatar: comment.poster.avatar
                     } : undefined,
-                    is_blocked: "null"
+                    is_blocked: is_blocked(user, comment.poster)
                 };
             })
         });
@@ -170,5 +170,10 @@ router.post('/get_comment', verify, async (req, res) => {
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 });
+
+function is_blocked(user, author) {
+    if(user && author && author.blockedList && author.blockedList.findIndex((element) => {return element.user == user.id}) != -1) return "1";
+    return "0";
+}
 
 module.exports = router;
