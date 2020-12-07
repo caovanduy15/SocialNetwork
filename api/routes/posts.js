@@ -537,7 +537,7 @@ router.post('/delete_post', verify, async (req, res) => {
     }
 
     if(post.image.length > 0) {
-        for(image of post.image) {
+        for(let image of post.image) {
             try {
                 await deleteRemoteFile(image.filename);
             } catch (err) {
@@ -700,7 +700,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
         }
     }
 
-    let promise, file;
+    let promises, file;
 
     if(video && !image) {
         if(post.image.length != 0) {
@@ -782,7 +782,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
 
         try {
             file = await Promise.all(promises);
-            for(file_item of file) {
+            for(let file_item of file) {
                 post.image.push(file_item);
             }
         } catch (err) {
