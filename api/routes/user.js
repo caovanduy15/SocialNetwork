@@ -114,7 +114,7 @@ router.post('/set_user_info', cpUpload, verify, async (req, res) => {
           console.log('xoa avatar xong!');
         } catch (error) {
           console.log('xoa avatar failed');
-          return can_edit(res, responseError.EXCEPTION_ERROR, error.message);
+          return callRes(res, responseError.EXCEPTION_ERROR, error.message);
         }
       }
       try {
@@ -136,7 +136,7 @@ router.post('/set_user_info', cpUpload, verify, async (req, res) => {
           console.log('xoa coverImage xong!');
         } catch (error) {
           console.log('xoa coverImage failed');
-          return can_edit(res, responseError.EXCEPTION_ERROR, error.message);
+          return callRes(res, responseError.EXCEPTION_ERROR, error.message);
         }
       }
       try {
