@@ -61,7 +61,7 @@ router.post('/get_requested_friends', verify, async (req, res) => {
       // console.log(sentUser);
       newElement.id = sentUser._id;
       newElement.username = sentUser.name;
-      newElement.avatar = sentUser.avatar;
+      newElement.avatar = sentUser.avatar.url;
       newElement.same_friends = 0;
       // find number of same_friends
       if (thisUser.friends.length != 0 && sentUser.friends.length != 0) {
@@ -234,7 +234,7 @@ router.post('/set_accept_friend', verify, async (req, res) => {
         // xóa req bên nhận
         let indexExist = thisUser.friendRequestReceived.findIndex(element =>
           element.fromUser._id.equals(sentUser._id));
-        if (indexExist < 0) return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
+        if (indexExist < 0) return callRes(res, responseError.METHOD_IS_INVALID, 'không có lời mời');
         thisUser.friendRequestReceived.splice(indexExist, 1);
         // xóa req bên gửi
         let indexExist1 = sentUser.friendRequestSent.findIndex(element =>
@@ -251,7 +251,7 @@ router.post('/set_accept_friend', verify, async (req, res) => {
         // xóa req bên nhận
         let indexExist = thisUser.friendRequestReceived.findIndex(element =>
           element.fromUser._id.equals(sentUser._id));
-        if (indexExist < 0) return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
+        if (indexExist < 0) return callRes(res, responseError.METHOD_IS_INVALID, 'không có lời mời');
         thisUser.friendRequestReceived.splice(indexExist, 1);
         // thêm bạn bên nhận
         let indexExist2 = thisUser.friends.findIndex(element =>
@@ -299,7 +299,7 @@ router.post("/get_list_blocks", verify, async(req, res) => {
         }
         userInfo.id = x.user._id.toString();
         userInfo.username = x.user.name;
-        userInfo.avatar = x.user.avatar;
+        userInfo.avatar = x.user.avatar.url;
         data.push(userInfo);
     }
     code = 1000;
@@ -367,7 +367,7 @@ router.post('/get_user_friends', verify, async (req, res) => {
       }
       friendInfor.id = x.friend._id.toString();
       friendInfor.username = x.friend.username;
-      friendInfor.avatar = x.friend.avatar;
+      friendInfor.avatar = x.friend.avatar.url;
       friendInfor.created = validTime.timeToSecond(x.createdAt) ;
 
       if (!thisUser._id.equals(x.friend._id))
