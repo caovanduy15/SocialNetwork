@@ -1,7 +1,7 @@
 // @desc check user password
 // @desc password valid: 6-10 chars
 var checkUserPassword = (password) => {
-    var regex = /^[A-Za-z\d@$!%*#?&]{6,10}$/;
+    var regex = /^[A-Za-z\d]{6,10}$/;
     return regex.test(password);
 }
 
