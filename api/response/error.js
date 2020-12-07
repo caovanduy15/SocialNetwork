@@ -144,9 +144,10 @@ function callRes(res, responseErrorName, data = null) {
   if (responseErrorName != responseError.OK){
     let x = {
       code: responseErrorName.body.code,
-      message: responseErrorName.body.message 
+      message: responseErrorName.body.message,
+      details: null
     }
-    if (data) x.message += ': ' + data.toString();
+    if (data) x.details = data.toString();
     return res.status(responseErrorName.statusCode).send(convertString(x));
   }
   else {
