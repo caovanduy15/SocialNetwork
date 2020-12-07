@@ -30,7 +30,7 @@ const uploader = multer({
 });
 
 router.post ('/get_user_info', verify, async (req, res) => {
-  let { user_id } = req.body;
+  let { user_id } = req.query;
   if (!user_id) user_id = req.user.id;
   else {
     if (user_id && typeof user_id != 'string')
