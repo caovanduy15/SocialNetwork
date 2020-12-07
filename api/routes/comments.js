@@ -83,13 +83,13 @@ router.post('/set_comment', verify, async (req, res) => {
                 id: savedComment._id,
                 comment: savedComment.comment,
                 created: savedComment.created.toString(),
-                poster: {
+                poster: poster ? {
                     id: poster._id,
                     name: poster.name,
                     avatar: poster.avatar
-                }
+                } : undefined,
             },
-            is_blocked: "null"
+            is_blocked: is_blocked(user, comment.poster)
         });
     } catch (err) {
         console.log(err);
@@ -156,12 +156,12 @@ router.post('/get_comment', verify, async (req, res) => {
                     id: comment._id,
                     comment: comment.comment,
                     created: comment.created.toString(),
-                    poster: {
+                    poster: comment.poster ? {
                         id: comment.poster._id,
                         name: comment.poster.name,
                         avatar: comment.poster.avatar
-                    },
-                    is_blocked: "null"
+                    } : undefined,
+                    is_blocked: is_blocked(user, comment.poster)
                 };
             })
         });
@@ -170,5 +170,10 @@ router.post('/get_comment', verify, async (req, res) => {
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 });
+
+function is_blocked(user, author) {
+    if(user && author && author.blockedList && author.blockedList.findIndex((element) => {return element.user == user.id}) != -1) return "1";
+    return "0";
+}
 
 module.exports = router;

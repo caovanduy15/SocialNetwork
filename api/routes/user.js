@@ -4,7 +4,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const validInput = require('../utils/validInput');
 const verify = require('../utils/verifyToken');
-
+const {responseError, callRes} = require('../response/error');
+const checkInput = require('../utils/validInput');
+const validTime = require('../utils/validTime');
+const User = require('../models/User');
 var multer  = require('multer');
 const { Storage } = require('@google-cloud/storage');
 const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
@@ -26,9 +29,13 @@ const uploader = multer({
   storage: multer.memoryStorage(),
 });
 
-router.get('/get_user_info', verify, async (req, res) => {
+router.post ('/get_user_info', verify, async (req, res) => {
   let { user_id } = req.body;
   if (!user_id) user_id = req.user.id;
+  else {
+    if (user_id && typeof user_id != 'string')
+      return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
+  }
   let user;
   let data = {
     id: null,
@@ -47,12 +54,13 @@ router.get('/get_user_info', verify, async (req, res) => {
   }
   try {
     user = await User.findById(user_id);
+    if (!user) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'user');
     data.id = user._id.toString();
     data.username = user.name;
-    data.created = user.createdAt;
+    data.created = validTime.timeToSecond(user.createdAt);
     data.description = user.description;
-    data.avatar= user.avatar;
-    data.cover_image = user.coverImage;
+    data.avatar= user.avatar.url;
+    data.cover_image = user.coverImage.url;
     data.link = user.link;
     data.address = user.address;
     data.city = user.city;
@@ -62,10 +70,9 @@ router.get('/get_user_info', verify, async (req, res) => {
       let indexExist = user.friends.findIndex(element => element.friend._id.equals(req.user.id)); 
       data.is_friend =  (indexExist >= 0) ? true : false;
     }
-    return res.status(200).json({code: 1000, message: "OK", data: data });
+    return callRes(res, responseError.OK, data);
   } catch (error) {
-    if (!user) return res.status(400).json({code: 1004, message: "truyền sai tham số, user không tìm được"});
-    else return res.status(500).json({code: 1005, message: error.message});
+    return callRes(res, responseError.UNKNOWN_ERROR, error.message);
   }
 });
 
@@ -73,39 +80,87 @@ var cpUpload = uploader.fields([{ name: 'avatar', maxCount: 1 }, { name: 'cover_
 router.post('/set_user_info', cpUpload, verify, async (req, res) => {
   let { username, description, address, city,country, link} = req.body;
   let fileAvatar, fileCoverImage, linkAvatar, linkCoverImage;
+  let user, promise1, promise2;
   if (req.files.avatar != undefined) fileAvatar = req.files.avatar[0];
   if (req.files.cover_image != undefined) fileCoverImage = req.files.cover_image[0];
-
-
+  if (username && typeof username !== "string")
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'username');
+  if (description && typeof description !== "string")
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'description');
+  if (address && typeof address !== "string")
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'address');
+  if (city && typeof city !== "string")
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'city');
+  if (country && typeof country !== "string")
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'country');
+  if (link && typeof link !== "string")
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'link');
   try {
-    let user = await User.findById(req.user.id);
+    try {
+      user = await User.findById(req.user.id);
+    } catch (error) {
+      return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'user');
+    }
+  
     if (fileAvatar) {
       if (!checkSizeImage(fileAvatar)) 
-        return res.status(400).json({ code: 1004, message: "file quá lớn, max = 4MB"});
+        return callRes(res, responseError.FILE_SIZE_IS_TOO_BIG, 'avatar: file quá lớn, max = 4MB');
       if (!checkTypeImage(fileAvatar))
-        return res.status(400).json({ code: 1004, message: "sai định dạng file"});
-      let promise1 = await uploadFile(fileAvatar);
-      linkAvatar = promise1.url;
+        return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'avatar: sai định dạng');
+      if (user.avatar){
+        try {
+          console.log('xoa avatar...');
+          await deleteRemoteFile(user.avatar.filename);
+          console.log('xoa avatar xong!');
+        } catch (error) {
+          console.log('xoa avatar failed');
+          return can_edit(res, responseError.EXCEPTION_ERROR, error.message);
+        }
+      }
+      try {
+        promise1 = await uploadFile(fileAvatar);
+        linkAvatar = promise1;
+      } catch (error) {
+        return callRes(res, responseError.UPLOAD_FILE_FAILED, error.message);
+      }
     } 
     if (fileCoverImage) {
       if (!checkSizeImage(fileCoverImage)) 
-        return res.status(400).json({ code: 1004, message: "file quá lớn, max = 4MB"});
+        return callRes(res, responseError.FILE_SIZE_IS_TOO_BIG, 'cover_image: file quá lớn, max = 4MB');
       if (!checkTypeImage(fileCoverImage))
-        return res.status(400).json({ code: 1004, message: "sai định dạng file"});
-      let promise2 = await uploadFile(fileCoverImage);
-      linkCoverImage = promise2.url;
+        return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'cover_image: sai định dạng');
+      if (user.coverImage){
+        try {
+          console.log('xoa coverImage...');
+          await deleteRemoteFile(user.coverImage.filename);
+          console.log('xoa coverImage xong!');
+        } catch (error) {
+          console.log('xoa coverImage failed');
+          return can_edit(res, responseError.EXCEPTION_ERROR, error.message);
+        }
+      }
+      try {
+        promise2 = await uploadFile(fileCoverImage);
+        linkCoverImage = promise2;
+      } catch (error) {
+        return callRes(res, responseError.UPLOAD_FILE_FAILED, error.message);
+      }        
     } 
-    user.name = username;
-    user.description = description;
-    user.address = address;
-    user.city = city;
-    user.country = country;
-    user.link = link;
-    user.avatar.url = linkAvatar;
-    user.coverImage.url = linkCoverImage;
-    user = await user.save();
-    //return res.json({ code: 1000, message: "OK", data: { city, country, link, avatar: linkAvatar, cover_image: linkCoverImage}}); 
-    return res.json({ code: 1000, message: "OK", data: {
+    if (username) user.name = username;
+    if (description) user.description = description;
+    if (address) user.address = address;
+    if (city) user.city = city;
+    if (country) user.country = country;
+    if (link) user.link = link;
+    if (linkAvatar) user.avatar= linkAvatar;
+    if (linkCoverImage) user.coverImage= linkCoverImage;
+    try {
+      user = await user.save();
+    } catch (error) {
+      return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB, error.message);
+    }
+
+    return callRes(res, responseError.OK, {
       avatar: user.avatar.url,
       cover_image: user.coverImage.url,
       link: user.link,
@@ -114,9 +169,9 @@ router.post('/set_user_info', cpUpload, verify, async (req, res) => {
       country: user.country, 
       username: user.name,
       description: user.description
-    }}); 
+    }); 
   } catch (error) {
-    return res.json({ code: 1005, message: error.message});
+    return callRes(res, responseError.UNKNOWN_ERROR, error.message);
   }
 })
 
@@ -131,8 +186,8 @@ const checkTypeImage = (image) => {
 
 function uploadFile(file) {
   const newNameFile = new Date().toISOString() + file.originalname;
-      const blob = bucket.file(newNameFile);
-      const blobStream = blob.createWriteStream({
+  const blob = bucket.file(newNameFile);
+  const blobStream = blob.createWriteStream({
       metadata: {
           contentType: file.mimetype,
       },
@@ -141,7 +196,21 @@ function uploadFile(file) {
       `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURI(blob.name)}?alt=media`;
   return new Promise((resolve, reject) => {
 
-      blobStream.on('error', reject);
-      blobStream.end(file.buffer, resolve({url: publicUrl}));
+      blobStream.on('error', function(err) {
+          reject(err);
+      });
+
+      blobStream.on('finish', () => {
+          resolve({
+              filename: newNameFile,
+              url: publicUrl
+          });
+        });
+
+      blobStream.end(file.buffer);
   });
+}
+
+async function deleteRemoteFile(filename) {
+  await bucket.file(filename).delete();
 }

@@ -112,12 +112,15 @@ router.post('/get_list_videos', async (req, res) => {
                 like: post.likedUser.length.toString(),
                 comment: post.comments.length.toString(),
                 is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                is_blocked: is_blocked(user, post.author),
+                can_comment: "1",
+                can_edit: can_edit(user, post.author),
                 state: post.status,
-                author: {
+                author: post.author ? {
                     id: post.author._id,
                     username: post.author.name,
                     avatar: post.author.avatar
-                }
+                } : undefined,
             }
         }),
         new_items: index_last_id.toString(),
@@ -209,12 +212,15 @@ router.post('/get_list_posts', async (req, res) => {
                 like: post.likedUser.length.toString(),
                 comment: post.comments.length.toString(),
                 is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                is_blocked: is_blocked(user, post.author),
+                can_comment: "1",
+                can_edit: can_edit(user, post.author),
                 state: post.status,
-                author: {
+                author: post.author ? {
                     id: post.author._id,
                     username: post.author.name,
                     avatar: post.author.avatar
-                }
+                } : undefined,
             }
         }),
         new_items: index_last_id.toString(),
@@ -276,12 +282,15 @@ router.post('/get_post', async (req, res) => {
                         url: post.video.url,
                         thumb: post.video.url ? "null" : undefined
                     },
-                    author: {
+                    author: post.author ? {
                         id: post.author._id,
                         name: post.author.name,
                         avatar: post.author.avatar
-                    },
-                    state: post.status
+                    } : undefined,
+                    state: post.status,
+                    is_blocked: is_blocked(user, post.author),
+                    can_edit: can_edit(user, post.author),
+                    can_comment: "1"
                 }
               });
         } else {
@@ -296,6 +305,15 @@ router.post('/get_post', async (req, res) => {
     }
 });
 
+function is_blocked(user, author) {
+    if(user && author && author.blockedList && author.blockedList.findIndex((element) => {return element.user == user.id}) != -1) return "1";
+    return "0";
+}
+
+function can_edit(user, author) {
+    if(user && author && (user.id == author._id)) return "1";
+    return "0";
+}
 
 function uploadFile(file) {
     const newNameFile = new Date().toISOString() + file.originalname;
