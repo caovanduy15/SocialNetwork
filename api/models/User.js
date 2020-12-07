@@ -17,9 +17,12 @@ const UserSchema = new Schema({
       default: Date.now
     },
     avatar: {
-        url: {
-            type: String
-        }
+      filename: {
+        type: String
+      },
+      url: {
+          type: String
+      }
     },
     password: {
         type: String,
@@ -76,6 +79,9 @@ const UserSchema = new Schema({
       default: "chưa có mô tả"
     },
     coverImage: {
+      filename: {
+        type: String
+      },
         url: {
           type: String
       }
