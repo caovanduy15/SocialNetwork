@@ -45,11 +45,12 @@ const Setting = require("../models/Setting");
 // Example: Use Postman
 // URL: http://127.0.0.1:5000/it4788/signup
 // BODY: {
-// "phoneNumber": "0789554152",
+// "phonenumber": "0789554152",
 // "password": "nguyen123"
 //}
 router.post('/signup', async (req, res) => {
-  const { phoneNumber, password } = req.query;
+  const { password } = req.query;
+  let phoneNumber = req.query.phonenumber;
 
   if (phoneNumber === undefined || password === undefined) {
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phoneNumber, password');
@@ -156,7 +157,8 @@ router.post('/check_verify_code', (req, res) => {
 // @desc   login
 // @access Public
 router.post('/login', async (req, res) => {
-  const { phoneNumber, password } = req.query;
+  const { password } = req.query;
+  let phoneNumber = req.query.phonenumber;
   if (phoneNumber === undefined || password === undefined) {
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phoneNumber, password');
   }
