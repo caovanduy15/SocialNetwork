@@ -23,7 +23,7 @@ const MAX_FRIEND_NUMBER = 500;
 //   "count": 10
 // }
 router.post('/get_requested_friends', verify, async (req, res) => {
-  let { index, count } = req.body;
+  let { index, count } = req.query;
   let id = req.user.id;
   let data = {
     request: [],
@@ -94,7 +94,7 @@ router.post('/set_request_friend', verify, async (req, res) => {
     requested_friends: null // số người đang đươc tài khoản hiện tại gửi request friend
   }
 
-  let { user_id } = req.body; // user_id là id của người nhận request friend
+  let { user_id } = req.query; // user_id là id của người nhận request friend
   if (user_id === undefined) 
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'user_id');
   if (typeof user_id != 'string')
@@ -211,7 +211,7 @@ router.post('/set_accept_friend', verify, async (req, res) => {
 
   // user_id là id của người nhận request friend
   // is_accept : 0 là từ chối, 1 là đồng ý
-  let { user_id, is_accept } = req.body;
+  let { user_id, is_accept } = req.query;
   if ( user_id === undefined|| is_accept === undefined) 
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'user_id, is_accept');
   if (typeof user_id != 'string')
@@ -320,7 +320,7 @@ router.post("/get_list_blocks", verify, async(req, res) => {
 // }
 router.post('/get_user_friends', verify, async (req, res) => {
   // input
-  let { user_id, index, count } = req.body;
+  let { user_id, index, count } = req.query;
   // user id from token
   let id = req.user.id;
 
