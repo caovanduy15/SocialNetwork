@@ -49,7 +49,7 @@ const Setting = require("../models/Setting");
 // "password": "nguyen123"
 //}
 router.post('/signup', async (req, res) => {
-  const { phoneNumber, password } = req.body;
+  const { phoneNumber, password } = req.query;
 
   if (phoneNumber === undefined || password === undefined) {
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phoneNumber, password');
@@ -156,7 +156,7 @@ router.post('/check_verify_code', (req, res) => {
 // @desc   login
 // @access Public
 router.post('/login', async (req, res) => {
-  const { phoneNumber, password } = req.body;
+  const { phoneNumber, password } = req.query;
   if (phoneNumber === undefined || password === undefined) {
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phoneNumber, password');
   }
