@@ -41,6 +41,8 @@ const subjectArray = {
 
 };
 
+const categoryArray = ['0', '1'];
+
 // Create new storage instance with Firebase project credentials
 const storage = new Storage({
     projectId: process.env.GCLOUD_PROJECT_ID,
@@ -931,5 +933,74 @@ router.post('/report_post', verify, async (req, res) => {
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 })
+
+// @route  POST it4788/post/check_new_item
+// @desc   check new item
+// @access Public
+/*
+Da check:
+*/
+router.post('/check_new_item', async (req, res) => {
+    var {last_id, category_id} = req.query;
+    var data;
+    // PARAMETER_IS_NOT_ENOUGH
+    if(last_id !== 0 && !last_id) {
+        console.log("No have parameter last_id");
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+    }
+
+    // PARAMETER_TYPE_IS_INVALID
+    if((last_id && typeof last_id !== "string") || (category_id && typeof category_id !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    if(category_id && !categoryArray.includes(category_id)) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    if(!category_id) {
+        category_id = '0';
+    }
+
+    var posts;
+
+    try {
+        if(category_id == '0') {
+            posts = await Post.find().sort("-created");
+        } else if (category_id == '1') {
+            posts = await Post.find({"video.url": { $ne: undefined }}).sort("-created");
+        }
+    } catch (err) {
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+    }
+
+    // NO_DATA_OR_END_OF_LIST_DATA
+    if(posts.length < 1) {
+        console.log('No have posts');
+        return res.status(200).send({
+            code: "1000",
+            message: "OK",
+            data: {
+                new_items: "0"
+            }
+        });
+    }
+
+    let index_last_id = posts.findIndex((element) => {return element._id == last_id});
+    if(index_last_id == -1) {
+        last_id = posts[0]._id;
+        index_last_id = 0;
+    }
+
+    res.status(200).send({
+                        code: "1000",
+                        message: "OK",
+                        data: {
+                            new_items: index_last_id.toString()
+                        }
+                    });
+});
 
 module.exports = router;
