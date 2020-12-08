@@ -32,12 +32,12 @@ const subjectArray = {
     'Ảnh khỏa thân': ['Ảnh khỏa thân người lớn', 'Gợi dục', 'Hoạt động tình dục', 'Bóc lột tình dục', 'Dịch vụ tình dục', 'Liên quan đến trẻ em', 'Chia sẻ hình ảnh riêng tư'],
     'Bạo lực': ['Hình ảnh bạo lực', 'Tử vong hoặc bị thương nặng', 'Mối đe dọa bạo lực', 'Ngược đãi động vật', 'Vấn đề khác'],
     'Quấy rồi': ['Tôi', 'Một người bạn'],
-    'Tự tử/Tự gây thương tích': '',
-    'Tin giả': '',
-    'Spam': '',
+    'Tự tử/Tự gây thương tích': 'Tự tử/Tự gây thương tích',
+    'Tin giả': 'Tin giả',
+    'Spam': 'Spam',
     'Bán hàng trái phép': ['Chất cấm, chất gây nghiện', 'Vũ khí', 'Động vật có nguy cơ bị tuyệt chủng', 'Động vật khác', 'Vấn đề khác'],
     'Ngôn từ gây thù ghét': ['Chủng tộc hoặc sắc tộc', 'Nguồn gốc quốc gia', 'Thành phần tôn giáo', 'Phân chia giai cấp xã hội', 'Thiên hướng tình dục', 'Giới tính hoặc bản dạng giới', 'Tình trạng khuyết tật hoặc bệnh tật', 'Hạng mục khác'],
-    'Khủng bố': '',
+    'Khủng bố': 'Khủng bố',
 
 };
 
@@ -867,7 +867,7 @@ router.post('/report_post', verify, async (req, res) => {
     var user = req.user;
 
     // PARAMETER_IS_NOT_ENOUGH
-    if(!id || !subject || (!details && details !== '')) {
+    if(!id || !subject || !details) {
         console.log("No have parameter id, subject, details");
         return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
     }
