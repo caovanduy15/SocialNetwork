@@ -3,7 +3,7 @@ const User = require('../models/User');
 var {responseError, setAndSendResponse, callRes} = require('../response/error');
 
 module.exports = function (req, res, next) {
-    const {token} = req.query;
+    const token = req.query.token || req.body.token;
     if(token !== 0 && !token) {
         console.log("PARAMETER_IS_NOT_ENOUGH");
         return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);

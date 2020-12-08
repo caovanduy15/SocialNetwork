@@ -15,7 +15,7 @@ function countWord(str) {
 // @desc   add new comment
 // @access Public
 router.post('/set_comment', verify, async (req, res) => {
-    var {id, comment, index, count} = req.body;
+    var {id, comment, index, count} = req.query;
     var user = req.user;
 
     if(!id || !comment || (index !== 0 && !index) || (count !== 0 && !count)) {
@@ -47,7 +47,7 @@ router.post('/set_comment', verify, async (req, res) => {
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+            return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
         }
         console.log("findById Post");
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
@@ -66,7 +66,7 @@ router.post('/set_comment', verify, async (req, res) => {
     });
 
     try {
-        const poster = await User.findById(user.id);
+        const userDB = await User.findById(user.id);
         // Save comment
         const savedComment = await _comment.save();
         if(!post.comments) {
@@ -76,20 +76,26 @@ router.post('/set_comment', verify, async (req, res) => {
         }
         const updatedPost = await post.save();
 
+        const comments = await Comment.find({post: id}).populate('poster').sort("created");
+
+        let sliceComments = comments.slice(index, index + count);
+
         res.status(200).send({
             code: "1000",
             message: "OK",
-            data: {
-                id: savedComment._id,
-                comment: savedComment.comment,
-                created: savedComment.created.toString(),
-                poster: poster ? {
-                    id: poster._id,
-                    name: poster.name,
-                    avatar: poster.avatar
-                } : undefined,
-            },
-            is_blocked: is_blocked(user, comment.poster)
+            data: sliceComments.map(comment => {
+                return {
+                    id: comment._id,
+                    comment: comment.comment,
+                    created: comment.created.toString(),
+                    poster: comment.poster ? {
+                        id: comment.poster._id,
+                        name: comment.poster.name,
+                        avatar: comment.poster.avatar
+                    } : undefined,
+                    is_blocked: is_blocked(userDB, comment.poster)
+                };
+            })
         });
     } catch (err) {
         console.log(err);
@@ -101,7 +107,7 @@ router.post('/set_comment', verify, async (req, res) => {
 // @desc   add new comment
 // @access Public
 router.post('/get_comment', verify, async (req, res) => {
-    var {id, index, count} = req.body;
+    var {id, index, count} = req.query;
     var user = req.user;
 
     if(!id || (index !== 0 && !index) || (count !== 0 && !count)) {
@@ -122,9 +128,10 @@ router.post('/get_comment', verify, async (req, res) => {
         return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
     }
 
-    var post;
+    var post, userDB;
     try {
         post = await Post.findById(id);
+        userDB = await User.findById(user.id);
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
@@ -140,11 +147,17 @@ router.post('/get_comment', verify, async (req, res) => {
     }
 
     try {
-        const comments = await Comment.find({post: req.body.id}).populate('poster').sort("-created");
+        const comments = await Comment.find({post: id}).populate('poster').sort("created");
+
+        if(!comments) {
+            console.log('Post no have comments');
+            return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
+        }
+
         let sliceComments = comments.slice(index, index + count);
 
-        if(!comments || sliceComments.length < 1) {
-            console.log('Post no have comments');
+        if(sliceComments.length < 1) {
+            console.log('sliceComments no have comments');
             return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
         }
 
@@ -161,7 +174,7 @@ router.post('/get_comment', verify, async (req, res) => {
                         name: comment.poster.name,
                         avatar: comment.poster.avatar
                     } : undefined,
-                    is_blocked: is_blocked(user, comment.poster)
+                    is_blocked: is_blocked(userDB, comment.poster)
                 };
             })
         });
@@ -172,7 +185,8 @@ router.post('/get_comment', verify, async (req, res) => {
 });
 
 function is_blocked(user, author) {
-    if(user && author && author.blockedList && author.blockedList.findIndex((element) => {return element.user == user.id}) != -1) return "1";
+    if(user && author && author.blockedList && author.blockedList.findIndex((element) => {return element.user.toString() == user._id.toString()}) != -1) return "1";
+    if(user && author && user.blockedList && user.blockedList.findIndex((element) => {return element.user.toString() == author._id.toString()}) != -1) return "1";
     return "0";
 }
 
