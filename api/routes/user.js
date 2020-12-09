@@ -79,20 +79,6 @@ router.post ('/get_user_info', verify, async (req, res) => {
 var cpUpload = uploader.fields([{ name: 'avatar', maxCount: 1 }, { name: 'cover_image', maxCount: 1 }]);
 router.post('/set_user_info', cpUpload, verify, async (req, res) => {
   let { username, description, address, city,country, link} = req.body;
-
-  if (username && typeof username !== 'string')
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'username');
-  if (description && typeof description !== 'string')
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'description');
-  if (address && typeof address !== 'string')
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'address');
-  if (city && typeof city !== 'string')
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'city');
-  if (country && typeof country !== 'string')
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'country'); 
-  if (link && typeof link !== 'string')
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'link');  
-
   let fileAvatar, fileCoverImage, linkAvatar, linkCoverImage;
   let user, promise1, promise2;
   if (req.files.avatar != undefined) fileAvatar = req.files.avatar[0];
