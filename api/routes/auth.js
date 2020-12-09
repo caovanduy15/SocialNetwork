@@ -118,7 +118,7 @@ router.post('/get_verify_code', async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ phoneNumber: phonenumber });
+    let user = await User.findOne({ phoneNumber: phonenumber });
     if(!user) {
       console.log("phonenumber is not existed");
       return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'phonenumber is not existed');
@@ -156,34 +156,62 @@ router.post('/get_verify_code', async (req, res) => {
 // @route  POST it4788/check_verify_code
 // @desc   check verified code
 // @access Public
-router.post('/check_verify_code', (req, res) => {
-  const { phoneNumber, verifyCode } = req.body;
+router.post('/check_verify_code', async (req, res) => {
+  const { phonenumber, code_verify } = req.query;
 
-  if (!phoneNumber) {
-    return res.status(400).json({ msg: "Please enter your phone number" });
+  if (!phonenumber || !code_verify) {
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phonenumber, code_verify');
+  }
+  if (typeof phonenumber != 'string' || typeof code_verify != 'string') {
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phonenumber, code_verify');
+  }
+  if (!validInput.checkPhoneNumber(phonenumber)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phonenumber');
+  }
+  if (!validInput.checkVerifyCode(code_verify)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'code_verify');
   }
 
-  if (!verifyCode) {
-    return res.status(400).json({ msg: "Please enter the code" });
-  }
-
-  User.findOne({ phoneNumber }).then(user => {
-    if (!user)
-      return res.status(400).json({ msg: "Invalid phone number" });
-    else if (user.verifyCode != verifyCode)
-      return res.status(400).json({ msg: "Wrong code" });
-    else {
-      user.isVerified = true;
-      user.save()
-        .then(() => res.json({
-          msg: "Your account has been verified",
-        }))
-        .catch(err => res.json({
-          code: 1005,
-          message: "Unknown Error"
-        }))
+  try {
+    let user = await User.findOne({ phoneNumber: phonenumber });
+    if(!user) {
+      console.log("phonenumber is not existed");
+      return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'phonenumber is not existed');
     }
-  });
+
+    if(user.isVerified) {
+      console.log("user is verified");
+      return callRes(res, responseError.USER_EXISTED, 'user is verified');
+    }
+
+    if(user.verifyCode != code_verify) {
+      console.log("code_verify sai");
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'code_verify is wrong');
+    }
+
+    user.isVerified = true;
+    user.verifyCode = undefined;
+    user.dateLogin = Date.now();
+    let loginUser = await user.save();
+
+    jwt.sign(
+      { id: loginUser.id, dateLogin: loginUser.dateLogin },
+      process.env.jwtSecret,
+      { expiresIn: 86400 },
+      (err, token) => {
+        if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+        let data = {
+          token: token,
+          id: user._id,
+          active: null
+        }
+        return callRes(res, responseError.OK, data);
+      });
+  } catch (err) {
+    console.log(err);
+    console.log("CAN_NOT_CONNECT_TO_DB");
+    return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB);
+  }
 });
 
 

@@ -28,4 +28,11 @@ const checkIsInteger = x => {
   else return false;
 }
 
-module.exports = { checkUserPassword, checkPhoneNumber, checkNotNegativeInteger, checkIsInteger};
+// @desc check phone number
+// @desc password valid: 10 digits, begin with '0'
+var checkVerifyCode = (verifyCode) => {
+  var regex = /^[1-9][0-9]{3}$/;
+  return regex.test(verifyCode);
+}
+
+module.exports = { checkUserPassword, checkPhoneNumber, checkNotNegativeInteger, checkIsInteger, checkVerifyCode};
