@@ -64,6 +64,9 @@ router.post('/signup', async (req, res) => {
   if (!validInput.checkUserPassword(password)) {
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password');
   }
+  if (phoneNumber == password) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'trùng phone và pass');
+  }
   try {
     let user = await User.findOne({phoneNumber});
     if (user) return callRes(res, responseError.USER_EXISTED);

@@ -36,7 +36,7 @@ router.post('/get_requested_friends', verify, async (req, res) => {
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
   if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');
-  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, ': index, count');
+  if (index < 0 || count < 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, ': index, count');
 
   try {
     thisUser = await User.findById(id)
@@ -335,7 +335,7 @@ router.post('/get_user_friends', verify, async (req, res) => {
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
   if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');
-  if (index < 0 || count <= 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, ': index, count');
+  if (index < 0 || count < 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, ': index, count');
 
   // var
   let thisUser, targetUser;
@@ -379,6 +379,73 @@ router.post('/get_user_friends', verify, async (req, res) => {
     if (data.friends.length == 0) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'friends');
     data.total = targetUser.friends.length;
     return callRes(res, responseError.OK, data);
+  } catch (error) {
+    return callRes(res, responseError.UNKNOWN_ERROR, error.message);
+  }
+})
+
+router.post('/get_list_suggested_friends', verify, async (req, res) => {
+  try {
+  const { index, count } = req.query;
+  // check input data
+  if ( index === undefined|| count === undefined) 
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
+  if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');
+  if (index < 0 || count < 0) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, ': index, count');
+
+  let id = req.user.id;
+  let data = {
+    total: 0,
+    list_users: []
+  };
+  let listID = [], list_users = [];
+  let thisUser, targetUser;
+  thisUser = await User.findById(id);
+  if (!thisUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'thisUser');
+  if (thisUser.friends.length > 0) {
+    for (let x of thisUser.friends){
+      targetUser = await User.findById(x.friend).select({ "friends": 1 });
+      if (!targetUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'targetUser');
+      await targetUser.populate({ path: 'friends.friend', select: 'friends _id name avatar' }).execPopulate();
+      for (let y of targetUser.friends) {
+        if (!y.friend._id.equals(id) && !listID.includes(y.friend._id)) {
+          let e = {
+            user_id: y.friend._id,
+            username: (y.friend.name) ? y.friend.name : null,
+            avatar: (y.friend.avatar) ? y.friend.avatar.url : null,
+            same_friends: 0
+          }
+          if (thisUser.friends.length > 0 && y.friend.friends.length > 0){
+            e.same_friends = countSameFriend(thisUser.friends,y.friend.friends);
+          }
+          list_users.push(e);
+          listID.push(y.friend.id);
+        }
+      }
+    }
+  }
+  if (list_users.length == 0){
+    let users = await User.find({'user._id': {$ne: id}})
+      .select({ "friends": 1, "_id": 1, "name": 1, "avatar": 1 })
+      .sort("-createdAt");
+    if (!users) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'no other user');
+    for (let y of users) {
+        let e = {
+          user_id: y._id,
+          username: y.name,
+          avatar: (y.avatar) ? y.avatar.url : null,
+          same_friends: 0
+        }
+        if (thisUser.friends.length > 0 && y.friends.length > 0){
+          e.same_friends = countSameFriend(thisUser.friends,y.friends);
+        }
+        list_users.push(e);
+    }
+  }
+  data.list_users = list_users.slice(index, index + count);
+  data.total = list_users.length;
+  return callRes(res, responseError.OK, data);
   } catch (error) {
     return callRes(res, responseError.UNKNOWN_ERROR, error.message);
   }
