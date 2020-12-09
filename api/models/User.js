@@ -9,23 +9,24 @@ const UserSchema = new Schema({
         type: String,
         required: true,
     },
-    passwordResetToken: String,
-    passwordResetTokenExpiry: Date,
     dateLogin: {
         type: Date
     },
+    registerDate: {
+      type: Date,
+      default: Date.now
+    },
     avatar: {
-        url: {
-            type: String
-        }
+      filename: {
+        type: String
+      },
+      url: {
+          type: String
+      }
     },
     password: {
         type: String,
         required: true,
-    },
-    registerDate: {
-        type: Date,
-        default: Date.now
     },
     verifyCode: {
         type: Number,
@@ -78,6 +79,9 @@ const UserSchema = new Schema({
       default: "chưa có mô tả"
     },
     coverImage: {
+      filename: {
+        type: String
+      },
         url: {
           type: String
       }
@@ -96,4 +100,4 @@ const UserSchema = new Schema({
     }
 })
 
-module.exports = User = mongoose.model('users', UserSchema);
+module.exports = mongoose.model('users', UserSchema);

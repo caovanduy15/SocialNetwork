@@ -4,6 +4,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const validInput = require('../utils/validInput');
 const verify = require('../utils/verifyToken');
+const convertString = require('../utils/convertString');
+const {responseError, callRes} = require('../response/error');
+const checkInput = require('../utils/validInput');
+const validTime = require('../utils/validTime');
 
 
 
@@ -41,67 +45,57 @@ const Setting = require("../models/Setting");
 // Example: Use Postman
 // URL: http://127.0.0.1:5000/it4788/signup
 // BODY: {
-// "phoneNumber": "0789554152",
+// "phonenumber": "0789554152",
 // "password": "nguyen123"
 //}
-router.post('/signup', (req, res) => {
-  const { phoneNumber, password } = req.body;
+router.post('/signup', async (req, res) => {
+  const { password } = req.query;
+  let phoneNumber = req.query.phonenumber;
 
-  if (!phoneNumber || !password) {
-    return res.status(400).json({ code: 1004, message: "Please Enter All Fields " });
+  if (phoneNumber === undefined || password === undefined) {
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phoneNumber, password');
   }
+  if (typeof phoneNumber != 'string' || typeof password != 'string') {
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phoneNumber, password');
+  } 
   if (!validInput.checkPhoneNumber(phoneNumber)) {
-    return res.status(400).json({ code: 1004, message: "phone number is invalid" });
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phoneNumber');
   }
   if (!validInput.checkUserPassword(password)) {
-    return res.status(400).json({ code: 1004, message: "password is invalid" });
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password');
   }
-  // check for existing user
-  User.findOne({ phoneNumber })
-    .then(user => {
-      if (user) return res.status(400).json({ code: 9996, message: "User existed " });
-      const newUser = new User({
-        phoneNumber,
-        password,
-        verifyCode: random4digit(),
-        isVerified: false
-      });
-
-      // hash the password before save to DB
-      bcrypt.genSalt(10, (err, salt) => {
-        bcrypt.hash(newUser.password, salt, (err, hash) => {
-          if (err) throw err;
-          newUser.password = hash;
-          newUser.save()
-            .then(async (user) => {
-              //add default setting
-              const defautSetting = new Setting({
-                user: user.id
-              })
-              await defautSetting.save();
-
-              // send verify code
-              res.json({
-                code: 1000,
-                message: "OK",
-                user: {
-                  id: user.id,
-                  phoneNumber: user.phoneNumber,
-                  verifyCode: user.verifyCode,
-                  isVerified: user.isVerified
-                }
-
-              })
-            })
-            .catch(err => {
-              res.json({
-                code: 1005,
-                message: "Unknown Error"
-              })
-            })
-        })
+  try {
+    let user = await User.findOne({phoneNumber});
+    if (user) return callRes(res, responseError.USER_EXISTED);
+    const newUser = new User({
+      phoneNumber,
+      password,
+      verifyCode: random4digit(),
+      isVerified: false
+    });
+    // hash the password before save to DB
+    bcrypt.genSalt(10, (err, salt) => {
+      if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+      bcrypt.hash(newUser.password, salt, async (err, hash) => {
+        if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+        newUser.password = hash;
+        try {
+          let saved = await newUser.save();
+          let data = {
+            id: saved.id,
+            phoneNumber: saved.phoneNumber,
+            verifyCode: saved.verifyCode,
+            isVerified: saved.isVerified
+          }
+          return callRes(res, responseError.OK, data);  
+        } catch (error) {
+          return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB, error.message);
+        }
       })
     })
+  } catch (error) {
+    return callRes(res, responseError.UNKNOWN_ERROR, error.message);
+  }
 })
 
 
@@ -162,52 +156,55 @@ router.post('/check_verify_code', (req, res) => {
 // @route  POST it4788/login
 // @desc   login
 // @access Public
-router.post('/login', (req, res) => {
-  const { phoneNumber, password } = req.body;
-
-  if (!phoneNumber || !password) {
-    return res.status(400).json({ code: 1004, message: "Please enter all fields" })
+router.post('/login', async (req, res) => {
+  const { password } = req.query;
+  let phoneNumber = req.query.phonenumber;
+  if (phoneNumber === undefined || password === undefined) {
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phoneNumber, password');
   }
+  if (typeof phoneNumber != 'string' || typeof password != 'string') {
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phoneNumber, password');
+  } 
   if (!validInput.checkPhoneNumber(phoneNumber)) {
-    return res.status(400).json({ code: 1004, message: "phone number is invalid" });
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phoneNumber');
   }
   if (!validInput.checkUserPassword(password)) {
-    return res.status(400).json({ code: 1004, message: "password is invalid" });
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password');
   }
-  // check for existing user
-  User.findOne({ phoneNumber })
-    .then(user => {
-      if (!user) return res.status(400).json({ code: 9995, message: "User doesn't exists" });
-      if (!user.isVerified) return res.status(400).json({ code: 9995, message: "User is not verified" });
-      // validate password
-      bcrypt.compare(password, user.password)
-        .then(isMatch => {
-          if (!isMatch) return res.status(400).json({ code: 9995, message: "Wrong Password" })
-          user.dateLogin = Date.now();
-          user.save()
-            .then(loginUser => {
-              jwt.sign(
-                { id: loginUser.id, dateLogin: loginUser.dateLogin },
-                process.env.jwtSecret,
-                { expiresIn: 86400 },
-                (err, token) => {
-                  if (err) throw err;
-                  res.json({
-                    code: 1000,
-                    message: "Login successfully",
-                    token: token,
-                    user: {
-                      id: user.id,
-                      phoneNumber: user.phoneNumber,
-                      dateLogin: user.dateLogin
-                    }
-                  })
-                }
-              )
-            })
-
-        })
-    })
+  try {
+    // check for existing user
+    let user = await User.findOne({ phoneNumber });
+    if (!user) return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'không có user này');
+    if (!user.isVerified) return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'chưa xác thực code verify');
+    bcrypt.compare(password, user.password)
+      .then(async (isMatch) => {
+        if (!isMatch) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password');
+        user.dateLogin = Date.now();
+        try {
+          let loginUser = await user.save();
+          jwt.sign(
+            { id: loginUser.id, dateLogin: loginUser.dateLogin },
+            process.env.jwtSecret,
+            { expiresIn: 86400 },
+            (err, token) => {
+              if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+              let data = {
+                id: loginUser.id,
+                username: (loginUser.name) ? loginUser.name : null,
+                token: token,
+                avatar: (loginUser.avatar.url) ? loginUser.avatar.url : null,
+                active: null
+              }
+              return callRes(res, responseError.OK, data);
+            }
+          )
+        } catch (error) {
+          return callRes(res, responseError.UNKNOWN_ERROR, error.message);
+        }
+      })
+  } catch (error) {
+    return callRes(res, responseError.UNKNOWN_ERROR, error.message);
+  }
 })
 
 router.post("/change_password", (req, res) => {
@@ -251,26 +248,15 @@ router.post("/change_password", (req, res) => {
 // @route  POST it4788/logout
 // @desc   logout
 // @access Public
-router.post("/logout", (req, res) => {
-  var { token } = req.body;
-
-  // no token
-  if (!token) return res.status(400).json({ code: 1004, message: "not correct parameter!" });
-  jwt.verify(token, process.env.jwtSecret, (err, user) => {
-
-    // not valid token
-    if (("undefined" === typeof (user))) {
-      return res.json({ code: 1004, message: "not correct parameter!" });
-    }
-
-    // valid token
-    User.findById(user.id, (err, rslUser) => {
-      rslUser.dateLogin = "";
-      rslUser.save()
-        .then(() => res.json({ code: 1000, message: "Log out success" }))
-        .catch(err => res.json({ code: 1005, message: err.message }))
-    })
-  })
+router.post("/logout", verify, async (req, res) => {
+  try {
+    let user = await User.findById(req.user.id);
+    user.dateLogin = "";
+    await user.save();
+    return callRes(res, responseError.OK);
+  } catch (error) {
+    return callRes(res, responseError.UNKNOWN_ERROR, error.message);
+  }
 })
 
 router.post("/set_devtoken", (req, res) => {
