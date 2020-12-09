@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const User = require('../models/User');
 const Post = require('../models/Post');
 const Report_Post = require('../models/Report_Post');
 const Comment = require('../models/Comment');
@@ -12,6 +13,35 @@ const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
 const MAX_VIDEO_NUMBER = 1;
 const MAX_SIZE_VIDEO = 10 * 1024 * 1024; // for 10MB
 const MAX_WORD_POST = 500;
+const statusArray = ['hạnh phúc', 'có phúc', 'được yêu', 'buồn', 'đáng yêu', 'biết ơn', 'hào hứng', 'đang yêu', 'điên', 'cảm kích', 'sung sướng',
+                    'tuyệt vời', 'ngốc nghếch', 'vui vẻ', 'tuyệt vời', 'thật phong cách', 'thú vị', 'thư giãn', 'positive', 'rùng mình',
+                    'đầy hi vọng', 'hân hoan', 'mệt mỏi', 'có động lực', 'proud', 'chỉ có một mình', 'chu đáo', 'OK', 'nhớ nhà', 'giận dữ',
+                    'ốm yếu', 'hài lòng', 'kiệt sức', 'xúc động', 'tự tin', 'rất tuyệt', 'tươi mới', 'quyết đoán', 'kiệt sức', 'bực mình',
+                    'vui vẻ', 'gặp may', 'đau khổ', 'buồn tẻ', 'buồn ngủ', 'tràn đầy sinh lực', 'đói', 'chuyên nghiệp', 'đau đớn', 'thanh thản',
+                    'thất vọng', 'lạc quan', 'lạnh', 'dễ thương', 'tuyệt cú mèo', 'thật tuyệt', 'hối tiếc', 'thật giỏi', 'lo lắng', 'vui nhộn',
+                    'tồi tệ', 'xuống tinh thần', 'đầy cảm hứng', 'hài lòng', 'phấn khích', 'bình tĩnh', 'bối rối', 'goofy', 'trống vắng', 'tốt',
+                    'mỉa mai', 'cô đơn', 'mạnh mẽ', 'lo lắng', 'đặc biệt', 'chán nản', 'vui vẻ', 'tò mò', 'ủ dột', 'được chào đón', 'gục ngã',
+                    'xinh đẹp', 'tuyệt vời', 'cáu', 'căng thẳng', 'thiếu', 'kích động', 'tinh quái', 'kinh ngạc', 'tức giận', 'buồn chán',
+                    'bối rồi', 'mạnh mẽ', 'phẫn nộ', 'mới mẻ', 'thành công', 'ngạc nhiên', 'bối rối', 'nản lòng', 'tẻ nhạt', 'xinh xắn',
+                    'khá hơn', 'tội lỗi', 'an toàn', 'tự do', 'hoang mang', 'già nua', 'lười biếng', 'tồi tệ hơn', 'khủng khiếp', 'thoải mái',
+                    'ngớ ngẩn', 'hổ thẹn', 'kinh khủng', 'đang ngủ', 'khỏe', 'nhanh nhẹn', 'ngại ngùng', 'gay go', 'kỳ lạ', 'như con người',
+                    'bị tổn thương', 'khủng khiếp'
+                    ];
+
+const subjectArray = {
+    'Ảnh khỏa thân': ['Ảnh khỏa thân người lớn', 'Gợi dục', 'Hoạt động tình dục', 'Bóc lột tình dục', 'Dịch vụ tình dục', 'Liên quan đến trẻ em', 'Chia sẻ hình ảnh riêng tư'],
+    'Bạo lực': ['Hình ảnh bạo lực', 'Tử vong hoặc bị thương nặng', 'Mối đe dọa bạo lực', 'Ngược đãi động vật', 'Vấn đề khác'],
+    'Quấy rồi': ['Tôi', 'Một người bạn'],
+    'Tự tử/Tự gây thương tích': 'Tự tử/Tự gây thương tích',
+    'Tin giả': 'Tin giả',
+    'Spam': 'Spam',
+    'Bán hàng trái phép': ['Chất cấm, chất gây nghiện', 'Vũ khí', 'Động vật có nguy cơ bị tuyệt chủng', 'Động vật khác', 'Vấn đề khác'],
+    'Ngôn từ gây thù ghét': ['Chủng tộc hoặc sắc tộc', 'Nguồn gốc quốc gia', 'Thành phần tôn giáo', 'Phân chia giai cấp xã hội', 'Thiên hướng tình dục', 'Giới tính hoặc bản dạng giới', 'Tình trạng khuyết tật hoặc bệnh tật', 'Hạng mục khác'],
+    'Khủng bố': 'Khủng bố',
+
+};
+
+const categoryArray = ['0', '1'];
 
 // Create new storage instance with Firebase project credentials
 const storage = new Storage({
@@ -48,7 +78,7 @@ Token co the co hoac khong
 CAN_NOT_CONNECT_TO_DB neu get post loi
 */
 router.post('/get_list_videos', async (req, res) => {
-    var {token, index, count, last_id} = req.body;
+    var {token, index, count, last_id} = req.query;
     var data;
     // PARAMETER_IS_NOT_ENOUGH
     if((index !== 0 && !index) || (count !== 0 && !count)) {
@@ -111,7 +141,7 @@ router.post('/get_list_videos', async (req, res) => {
                 modified: post.modified.toString(),
                 like: post.likedUser.length.toString(),
                 comment: post.comments.length.toString(),
-                is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                is_liked: user ? (post.likedUser.includes(user._id) ? "1": "0") : "0",
                 is_blocked: is_blocked(user, post.author),
                 can_comment: "1",
                 can_edit: can_edit(user, post.author),
@@ -147,7 +177,7 @@ Token co the co hoac khong
 CAN_NOT_CONNECT_TO_DB neu get post loi
 */
 router.post('/get_list_posts', async (req, res) => {
-    var {token, index, count, last_id} = req.body;
+    var {token, index, count, last_id} = req.query;
     var data;
     // PARAMETER_IS_NOT_ENOUGH
     if((index !== 0 && !index) || (count !== 0 && !count)) {
@@ -211,7 +241,7 @@ router.post('/get_list_posts', async (req, res) => {
                 modified: post.modified.toString(),
                 like: post.likedUser.length.toString(),
                 comment: post.comments.length.toString(),
-                is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                is_liked: user ? (post.likedUser.includes(user._id) ? "1": "0") : "0",
                 is_blocked: is_blocked(user, post.author),
                 can_comment: "1",
                 can_edit: can_edit(user, post.author),
@@ -246,7 +276,7 @@ PARAMETER_VALUE_IS_INVALID cua id
 CAN_NOT_CONNECT_TO_DB neu lay bai post that bai tu csdl hoac lay user bi loi
 */
 router.post('/get_post', async (req, res) => {
-    var {token, id} = req.body;
+    var {token, id} = req.query;
     var data;
 
     // PARAMETER_IS_NOT_ENOUGH
@@ -276,7 +306,7 @@ router.post('/get_post', async (req, res) => {
                     modified: post.modified.toString(),
                     like: post.likedUser.length.toString(),
                     comment: post.comments.length.toString(),
-                    is_liked: user ? (post.likedUser.includes(user.id) ? "1": "0") : "0",
+                    is_liked: user ? (post.likedUser.includes(user._id) ? "1": "0") : "0",
                     image: post.image.map(image => { return {id: image._id, url: image.url};}),
                     video: {
                         url: post.video.url,
@@ -299,19 +329,20 @@ router.post('/get_post', async (req, res) => {
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+            return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
         }
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 });
 
 function is_blocked(user, author) {
-    if(user && author && author.blockedList && author.blockedList.findIndex((element) => {return element.user == user.id}) != -1) return "1";
+    if(user && author && author.blockedList && author.blockedList.findIndex((element) => {return element.user.toString() == user._id.toString()}) != -1) return "1";
+    if(user && author && user.blockedList && user.blockedList.findIndex((element) => {return element.user.toString() == author._id.toString()}) != -1) return "1";
     return "0";
 }
 
 function can_edit(user, author) {
-    if(user && author && (user.id == author._id)) return "1";
+    if(user && author && (user._id.toString() == author._id.toString())) return "1";
     return "0";
 }
 
@@ -380,9 +411,19 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
         return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
     }
 
+    if(status && !statusArray.includes(status)) {
+        console.log("Sai status");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    if(!described && !image && !video) {
+        console.log("Khong co described, image, video");
+        return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+    }
+
     if(image && video) {
         console.log("Have image and video");
-        return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+        return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
     }
 
     var post = new Post({
@@ -433,10 +474,7 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
     if(video) {
         if(video.length > MAX_VIDEO_NUMBER) {
             console.log("MAX_VIDEO_NUMBER");
-            return res.status(500).send({
-                code: "1008",
-                message: "Maximum number of video"
-            });
+            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
         }
 
         for(const item_video of video) {
@@ -499,7 +537,7 @@ CAN_NOT_CONNECT_TO_DB khi khong xoa duoc post trong csdl
 Da delete ca comment di kem
 */
 router.post('/delete_post', verify, async (req, res) => {
-    var { id } = req.body;
+    var { id } = req.query;
     var user = req.user;
 
     // PARAMETER_IS_NOT_ENOUGH
@@ -520,7 +558,7 @@ router.post('/delete_post', verify, async (req, res) => {
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+            return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
         }
         console.log("Can not connect to DB");
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
@@ -574,7 +612,7 @@ router.post('/delete_post', verify, async (req, res) => {
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+            return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
         }
         console.log("Can not connect to DB");
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
@@ -642,7 +680,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
 
     if(image && video) {
         console.log("Have image and video gui di");
-        return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+        return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
     }
 
     let post;
@@ -651,7 +689,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+            return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
         }
         console.log("Can not connect to DB");
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
@@ -705,15 +743,12 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
     if(video && !image) {
         if(post.image.length != 0) {
             console.log("Have image and video up video");
-            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+            return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
         }
 
         if(video.length > MAX_VIDEO_NUMBER) {
             console.log("MAX_VIDEO_NUMBER");
-            return res.status(500).send({
-                code: 1008,
-                message: "Maximum number of video"
-            });
+            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
         }
 
         for(const item_video of video) {
@@ -787,7 +822,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             }
         } catch (err) {
             console.log("Upload fail");
-            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+            return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
         }
     }
 
@@ -809,7 +844,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
         post.modified = Math.floor(Date.now() / 1000);
         const savedPost = await post.save();
         return res.status(200).send({
-            code: 1000,
+            code: "1000",
             message: "OK"
         });
     } catch (err) {
@@ -830,7 +865,7 @@ CAN_NOT_CONNECT_TO_DB neu truy van csdl that bai
 POST_IS_NOT_EXISTED
 */
 router.post('/report_post', verify, async (req, res) => {
-    var {id, subject, details} = req.body;
+    var {id, subject, details} = req.query;
     var user = req.user;
 
     // PARAMETER_IS_NOT_ENOUGH
@@ -845,13 +880,19 @@ router.post('/report_post', verify, async (req, res) => {
         return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
     }
 
+    // PARAMETER_VALUE_IS_INVALID
+    if(!subjectArray[subject] || !subjectArray[subject].includes(details)) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
     let post;
     try {
         post = await Post.findById(id);
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+            return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
         }
         console.log("Can not connect to DB");
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
@@ -860,6 +901,11 @@ router.post('/report_post', verify, async (req, res) => {
     if (!post) {
         console.log("Post is not existed");
         return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
+    }
+
+    if(post.author == user.id) {
+        console.log("Nguoi bao cao bai post va chu bai post la 1");
+        return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
     }
 
     const reportPost = new Report_Post({
@@ -887,5 +933,74 @@ router.post('/report_post', verify, async (req, res) => {
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }
 })
+
+// @route  POST it4788/post/check_new_item
+// @desc   check new item
+// @access Public
+/*
+Da check:
+*/
+router.post('/check_new_item', async (req, res) => {
+    var {last_id, category_id} = req.query;
+    var data;
+    // PARAMETER_IS_NOT_ENOUGH
+    if(last_id !== 0 && !last_id) {
+        console.log("No have parameter last_id");
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+    }
+
+    // PARAMETER_TYPE_IS_INVALID
+    if((last_id && typeof last_id !== "string") || (category_id && typeof category_id !== "string")) {
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    if(category_id && !categoryArray.includes(category_id)) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    if(!category_id) {
+        category_id = '0';
+    }
+
+    var posts;
+
+    try {
+        if(category_id == '0') {
+            posts = await Post.find().sort("-created");
+        } else if (category_id == '1') {
+            posts = await Post.find({"video.url": { $ne: undefined }}).sort("-created");
+        }
+    } catch (err) {
+        return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+    }
+
+    // NO_DATA_OR_END_OF_LIST_DATA
+    if(posts.length < 1) {
+        console.log('No have posts');
+        return res.status(200).send({
+            code: "1000",
+            message: "OK",
+            data: {
+                new_items: "0"
+            }
+        });
+    }
+
+    let index_last_id = posts.findIndex((element) => {return element._id == last_id});
+    if(index_last_id == -1) {
+        last_id = posts[0]._id;
+        index_last_id = 0;
+    }
+
+    res.status(200).send({
+                        code: "1000",
+                        message: "OK",
+                        data: {
+                            new_items: index_last_id.toString()
+                        }
+                    });
+});
 
 module.exports = router;

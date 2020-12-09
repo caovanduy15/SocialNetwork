@@ -4,7 +4,7 @@ const verify = require('../utils/verifyToken');
 var {responseError, setAndSendResponse} = require('../response/error');
 
 router.post('/like', verify, async (req, res) => {
-    var {id} = req.body;
+    var {id} = req.query;
     var user = req.user;
 
     // PARAMETER_IS_NOT_ENOUGH
@@ -26,7 +26,7 @@ router.post('/like', verify, async (req, res) => {
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
-            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+            return setAndSendResponse(res, responseError.POST_IS_NOT_EXISTED);
         }
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
     }

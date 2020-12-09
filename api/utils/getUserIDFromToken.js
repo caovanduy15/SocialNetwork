@@ -13,7 +13,7 @@ module.exports.getUserIDFromToken = async function(token) {
             var date = new Date(verified.dateLogin);
             if (user.dateLogin.getTime() == date.getTime())
             {
-                return verified;
+                return user;
             }
         }
         return undefined;
