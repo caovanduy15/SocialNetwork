@@ -23,12 +23,14 @@ router.post('/', verify, (req, res) => {
     const found_posts = []
 
     Post.find(
-        {}, 
+        { "described": {$ne: null} }, 
         (err, posts) => {
             if (err) res.status(500).json({
-                        code: 1005,
-                        message: err
+                code: 1005,
+                message: err
             })
+
+            console.log(posts.length)
 
             const newSearch = Search({
                 user: req.user.id,
