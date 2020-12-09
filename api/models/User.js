@@ -89,7 +89,7 @@ const UserSchema = new Schema({
     address: {
       type: String
     },
-    city: { 
+    city: {
       type: String
     },
     country: {
@@ -97,7 +97,10 @@ const UserSchema = new Schema({
     },
     link: {
       type: String
-    }
+    },
+    timeLastRequestGetVerifyCode: {
+      type: Date
+    },
 })
 
 module.exports = mongoose.model('users', UserSchema);

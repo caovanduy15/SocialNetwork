@@ -57,7 +57,7 @@ router.post('/signup', async (req, res) => {
   }
   if (typeof phoneNumber != 'string' || typeof password != 'string') {
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phoneNumber, password');
-  } 
+  }
   if (!validInput.checkPhoneNumber(phoneNumber)) {
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phoneNumber');
   }
@@ -87,7 +87,7 @@ router.post('/signup', async (req, res) => {
             verifyCode: saved.verifyCode,
             isVerified: saved.isVerified
           }
-          return callRes(res, responseError.OK, data);  
+          return callRes(res, responseError.OK, data);
         } catch (error) {
           return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB, error.message);
         }
@@ -102,20 +102,54 @@ router.post('/signup', async (req, res) => {
 // @route  POST it4788/get_verify_code
 // @desc   get verified code
 // @access Public
-router.post('/get_verify_code', (req, res) => {
-  const { phoneNumber } = req.body;
+router.post('/get_verify_code', async (req, res) => {
+  const { phonenumber } = req.query;
 
-  if (!phoneNumber) {
-    return res.status(400).json({ msg: "Please enter your phone number" });
+  if (!phonenumber) {
+    console.log("PARAMETER_IS_NOT_ENOUGH phonenumber");
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phonenumber');
   }
 
-  User.findOne({ phoneNumber: phoneNumber }).then(user => {
-    if (!user) return res.status(400).json({ msg: "Invalid phone number" });
-    else res.json({
-      msg: "Success",
+  if (phonenumber && typeof phonenumber != 'string') {
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phonenumber');
+  }
+  if (!validInput.checkPhoneNumber(phonenumber)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phonenumber');
+  }
+
+  try {
+    const user = await User.findOne({ phoneNumber: phonenumber });
+    if(!user) {
+      console.log("phonenumber is not existed");
+      return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'phonenumber is not existed');
+    }
+
+    if(user.isVerified) {
+      console.log("user is verified");
+      return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER, 'user is verified');
+    }
+
+    if(user.timeLastRequestGetVerifyCode) {
+      let time = (Date.now() - user.timeLastRequestGetVerifyCode) / 1000;
+      console.log(time);
+      if(time < 120) {
+        console.log("2 lan lay get verify gan nhau < 120s");
+        return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER, 'Await ' + (120 - time) + 's');
+      }
+    }
+
+    user.timeLastRequestGetVerifyCode = Date.now();
+    await user.save();
+
+    let data = {
       verifyCode: user.verifyCode
-    });
-  });
+    }
+    return callRes(res, responseError.OK, data);
+  } catch (err) {
+    console.log(err);
+    console.log("CAN_NOT_CONNECT_TO_DB");
+    return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB);
+  }
 });
 
 
@@ -164,7 +198,7 @@ router.post('/login', async (req, res) => {
   }
   if (typeof phoneNumber != 'string' || typeof password != 'string') {
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phoneNumber, password');
-  } 
+  }
   if (!validInput.checkPhoneNumber(phoneNumber)) {
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phoneNumber');
   }
