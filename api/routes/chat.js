@@ -4,6 +4,10 @@ const mongoose = require('mongoose');
 const verify = require('../utils/verifyToken');
 const Conversation = require('../models/Conversation');
 const User = require('../models/User');
+const convertString = require('../utils/convertString');
+const {responseError, callRes} = require('../response/error');
+const checkInput = require('../utils/validInput');
+const validTime = require('../utils/validTime');
 
 //Not API
 router.post('/create_conversation', async (req, res) => {
@@ -35,8 +39,11 @@ router.post('/add_dialog', async (req, res) => {
 });
 
 router.post('/delete_conversation', verify, async (req, res) => {
-    let code, message;
     let id = req.user.id;
+    let thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
     if (req.body.partnerId){
         let targetConversation;
         let { partnerId } = req.body;
@@ -53,41 +60,34 @@ router.post('/delete_conversation', verify, async (req, res) => {
             }
         }
         else {
-            code = "9995";
-            message = "Conversation not existed";
-            res.json({ code, message });
-            return;
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         await Conversation.deleteOne({ _id: targetConversation._id });
-        code = "1000";
-        message = "Successfully delete conversation";
     }
     else if (req.body.conversationId){
         let targetConversation;
         let { conversationId } = req.body;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (!targetConversation){
-            code = "9995";
-            message = "Conversation not existed";
-            res.json({ code, message });
-            return;
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         await Conversation.deleteOne({ _id: targetConversation._id });
-        code = "1000";
-        message = "Successfully delete message";
     }
     else{
-        code = "1002";
-        message = "Please enter all field";
-        res.json({ code, message });
-        return;
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'conversation_id or partner_id');
     }
-    res.json({ code, message });
+    return callRes(res, responseError.OK, 'Successfully delete conversation');
 });
 
 router.post('/delete_message', verify, async (req, res) => {
-    let code, message;
     let id = req.user.id;
+    let thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
+    if (!req.body.messageId){
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'message_id');
+    }
     if (req.body.partnerId){
         let targetConversation;
         let { messageId, partnerId } = req.body;
@@ -104,10 +104,7 @@ router.post('/delete_message', verify, async (req, res) => {
             }
         }
         else {
-            code = "9995";
-            message = "Conversation not existed";
-            res.json({ code, message });
-            return;
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         for (dialog in targetConversation.dialog){
             if (targetConversation.dialog[dialog].dialogId == messageId){
@@ -116,26 +113,18 @@ router.post('/delete_message', verify, async (req, res) => {
                     break;
                 }
                 else{
-                    code = "1004";
-                    message = "This is not your message";
-                    res.json({ code, message });
-                    return;
+                    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'This is not your message');
                 }
             }
         }
         targetConversation = await targetConversation.save();
-        code = "1000";
-        message = "Successfully delete message";
     }
     else if (req.body.conversationId){
         let targetConversation;
         let { messageId, conversationId } = req.body;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (!targetConversation){
-            code = "9995";
-            message = "Conversation not existed";
-            res.json({ code, message });
-            return;
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         for (dialog in targetConversation.dialog){
             if (targetConversation.dialog[dialog].dialogId == messageId){
@@ -144,29 +133,24 @@ router.post('/delete_message', verify, async (req, res) => {
                     break;
                 }
                 else{
-                    code = "1004";
-                    message = "This is not your message";
-                    res.json({ code, message });
-                    return;
+                    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'This is not your message');
                 }
             }
         }
         targetConversation = await targetConversation.save();
-        code = "1000";
-        message = "Successfully delete message";
     }
     else{
-        code = "1002";
-        message = "Please enter all field";
-        res.json({ code, message });
-        return;
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'conversation_id or partner_id');
     }
-    res.json({ code, message });
+    return callRes(res, responseError.OK, 'Successfully delete message');
 });
 
 router.post('/set_read_message', verify, async (req, res) => {
-    let code, message;
     let id = req.user.id;
+    let thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
     if (req.body.partnerId){
         let targetConversation;
         let { partnerId } = req.body;
@@ -183,43 +167,30 @@ router.post('/set_read_message', verify, async (req, res) => {
             }
         }
         else {
-            code = "9995";
-            message = "Conversation not existed";
-            res.json({ code, message });
-            return;
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         for (dialog in targetConversation.dialog){
             targetConversation.dialog[dialog].read = true;
         }
         targetConversation = await targetConversation.save();
-        code = "1000";
-        message = "Successfully set read message";
     }
     else if (req.body.conversationId){
         let targetConversation;
         let { conversationId } = req.body;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (!targetConversation){
-            code = "9995";
-            message = "Conversation not existed";
-            res.json({ code, message });
-            return;
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         for (dialog in targetConversation.dialog){
             targetConversation.dialog[dialog].read = true;
             await targetConversation.save();
         }
         targetConversation = await targetConversation.save();
-        code = "1000";
-        message = "Successfully set read message";
     }
     else{
-        code = "1002";
-        message = "Please enter all field";
-        res.json({ code, message });
-        return;
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'conversation_id or partner_id');
     }
-    res.json({ code, message });
+    return callRes(res, responseError.OK, 'Successfully set read message');
 });
 
 router.post('/get_list_conversation', verify, async (req, res) => {
@@ -289,16 +260,17 @@ router.post('/get_list_conversation', verify, async (req, res) => {
 });
 
 router.post('/get_conversation', verify, async (req, res) => {
-    let code, message;
+    let detail;
     let id = req.user.id;
+    let thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
     let data = {
         conversation: []
     }
     if (req.body.index === undefined || req.body.count === undefined){
-        code = "1002";
-        message = "Please enter all fields";
-        res.json({ code, message });
-        return;
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'index and count');
     }
     if (req.body.partnerId){
         let targetConversation;
@@ -316,10 +288,7 @@ router.post('/get_conversation', verify, async (req, res) => {
             }
         }
         else {
-            code = "9995";
-            message = "Conversation not existed";
-            res.json({ code, message });
-            return;
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         let endFor = targetConversation.dialog.length < index + count ? targetConversation.dialog.length : index + count;
         for (let i = index; i < endFor; i++){
@@ -337,27 +306,27 @@ router.post('/get_conversation', verify, async (req, res) => {
             }
             let targetUser;
             targetUser = await User.findById(x.sender);
+            if (!dialogInfo.message || !dialogInfo.message_id || !dialogInfo.created || dialogInfo.message == '' || dialogInfo.message_id == '' || dialogInfo.created == ''){
+                continue;
+            }
             dialogInfo.message = x.content;
             dialogInfo.message_id = x.dialogId;
             dialogInfo.unread = !x.read;
             dialogInfo.created = x.created;
-            dialogInfo.sender.id = targetUser._id;
-            dialogInfo.sender.username = targetUser.name;
-            dialogInfo.sender.avatar = targetUser.avatar;
+            if (!targetUser.isBlocked){
+                dialogInfo.sender.id = targetUser._id;
+                dialogInfo.sender.username = targetUser.name;
+                dialogInfo.sender.avatar = targetUser.avatar;
+            }
             data.conversation.push(dialogInfo);
         }
-        code = "1000";
-        message = "Successfully get conversation information";
     }
-    else {
+    else if (req.body.conversationId) {
         let targetConversation;
         let { index, count, conversationId } = req.body;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (!targetConversation){
-            code = "9995";
-            message = "Conversation not existed";
-            res.json({ code, message });
-            return;
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         let endFor = targetConversation.dialog.length < index + count ? targetConversation.dialog.length : index + count;
         for (let i = index; i < endFor; i++){
@@ -384,11 +353,11 @@ router.post('/get_conversation', verify, async (req, res) => {
             dialogInfo.sender.avatar = targetUser.avatar;
             data.conversation.push(dialogInfo);
         }
-        code = "1000";
-        message = "Successfully get conversation information";
     }
-
-    res.json({ code, message, data });
+    else{
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'conversation_id or partner_id');
+    }
+    return callRes(res, responseError.OK, 'Successfully get conversation');
 });
 
 module.exports = router;
