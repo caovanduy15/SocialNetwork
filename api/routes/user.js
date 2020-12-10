@@ -100,18 +100,25 @@ router.post ('/get_user_info', async (req, res) => {
     }
     return callRes(res, responseError.OK, data);
   } catch (error) {
-    throw error;
     return callRes(res, responseError.UNKNOWN_ERROR, error.message);
   }
 });
 
-var cpUpload = uploader.fields([{ name: 'avatar', maxCount: 1 }, { name: 'cover_image', maxCount: 1 }]);
+var cpUpload = uploader.fields([{ name: 'avatar'}, { name: 'cover_image'}]);
 router.post('/set_user_info', cpUpload, verify, async (req, res) => {
   let { username, description, address, city,country, link} = req.body;
   let fileAvatar, fileCoverImage, linkAvatar, linkCoverImage;
   let user, promise1, promise2;
-  if (req.files.avatar != undefined) fileAvatar = req.files.avatar[0];
-  if (req.files.cover_image != undefined) fileCoverImage = req.files.cover_image[0];
+  if (req.files.avatar != undefined) {
+    if (req.files.avatar.length >1) 
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'avatar >= 2 files');
+    fileAvatar = req.files.avatar[0];
+  }
+  if (req.files.cover_image != undefined) {
+    if (req.files.cover_image.length >1) 
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'cover_image >= 2 files');
+    fileCoverImage = req.files.cover_image[0];
+  }
   if (username && typeof username !== "string")
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'username');
   if (description && typeof description !== "string")
