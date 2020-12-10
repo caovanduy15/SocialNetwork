@@ -29,13 +29,22 @@ const uploader = multer({
   storage: multer.memoryStorage(),
 });
 
-router.post ('/get_user_info', verify, async (req, res) => {
-  let { user_id } = req.query;
-  if (!user_id) user_id = req.user.id;
+router.post ('/get_user_info', async (req, res) => {
+  let { token, user_id } = req.query;
+  let tokenUser, tokenError;
+  if (token) {
+    jwt.verify(token, process.env.jwtSecret, (err, decoded) => {
+      if (err) tokenError = err;
+      else tokenUser = decoded;
+    })
+  }
+  if (tokenError) return callRes(res, responseError.TOKEN_IS_INVALID);
+  if (!user_id && tokenUser ) user_id = tokenUser.id;
   else {
     if (user_id && typeof user_id != 'string')
       return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
   }
+  if (!user_id) return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH)
   let user;
   let data = {
     id: null,
@@ -66,12 +75,14 @@ router.post ('/get_user_info', verify, async (req, res) => {
     data.city = user.city;
     data.country = user.country;
     data.listing = user.friends.length;
-    if (user_id != req.user.id) {
-      let indexExist = user.friends.findIndex(element => element.friend._id.equals(req.user.id)); 
+    data.is_friend = false;
+    if (tokenUser && user_id != tokenUser.id) {
+      let indexExist = user.friends.findIndex(element => element.friend._id.equals(tokenUser.id)); 
       data.is_friend =  (indexExist >= 0) ? true : false;
     }
     return callRes(res, responseError.OK, data);
   } catch (error) {
+    throw error;
     return callRes(res, responseError.UNKNOWN_ERROR, error.message);
   }
 });
