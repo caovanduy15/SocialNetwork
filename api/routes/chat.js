@@ -11,7 +11,7 @@ const validTime = require('../utils/validTime');
 
 //Not API
 router.post('/create_conversation', async (req, res) => {
-    let { conversationId, firstUserId, secondUserId } = req.body;
+    let { conversationId, firstUserId, secondUserId } = req.query;
     let firstUser, secondUser;
     firstUser = await User.findById(firstUserId);
     secondUser = await User.findById(secondUserId);
@@ -25,7 +25,7 @@ router.post('/create_conversation', async (req, res) => {
 });
 //Not API
 router.post('/add_dialog', async (req, res) => {
-    let { conversationId, dialogId, senderId, content } = req.body;
+    let { conversationId, dialogId, senderId, content } = req.query;
     let conversation, sender;
     sender = await User.findById(senderId);
     conversation = await Conversation.findOne({conversationId});
@@ -44,9 +44,9 @@ router.post('/delete_conversation', verify, async (req, res) => {
     if (thisUser.isBlocked){
         return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
     }
-    if (req.body.partnerId){
+    if (req.query.partner_id){
         let targetConversation;
-        let { partnerId } = req.body;
+        let partnerId = req.query.partner_id;
         let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
         let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         if (targetConversation1){
@@ -64,9 +64,9 @@ router.post('/delete_conversation', verify, async (req, res) => {
         }
         await Conversation.deleteOne({ _id: targetConversation._id });
     }
-    else if (req.body.conversationId){
+    else if (req.query.conversation_id){
         let targetConversation;
-        let { conversationId } = req.body;
+        let conversationId = req.query.conversation_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (!targetConversation){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
@@ -85,12 +85,13 @@ router.post('/delete_message', verify, async (req, res) => {
     if (thisUser.isBlocked){
         return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
     }
-    if (!req.body.messageId){
+    if (!req.query.message_id){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'message_id');
     }
-    if (req.body.partnerId){
+    if (req.query.partner_id){
         let targetConversation;
-        let { messageId, partnerId } = req.body;
+        let partnerId = req.query.partner_id;
+        let messageId = req.query.message_id
         let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
         let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         if (targetConversation1){
@@ -119,9 +120,10 @@ router.post('/delete_message', verify, async (req, res) => {
         }
         targetConversation = await targetConversation.save();
     }
-    else if (req.body.conversationId){
+    else if (req.query.conversation_id){
         let targetConversation;
-        let { messageId, conversationId } = req.body;
+        let conversationId = req.query.conversation_id;
+        let messageId = req.query.message_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (!targetConversation){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
@@ -151,9 +153,9 @@ router.post('/set_read_message', verify, async (req, res) => {
     if (thisUser.isBlocked){
         return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
     }
-    if (req.body.partnerId){
+    if (req.query.partner_id){
         let targetConversation;
-        let { partnerId } = req.body;
+        let partnerId = req.query.partner_id;
         let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
         let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         if (targetConversation1){
@@ -174,9 +176,9 @@ router.post('/set_read_message', verify, async (req, res) => {
         }
         targetConversation = await targetConversation.save();
     }
-    else if (req.body.conversationId){
+    else if (req.query.conversation_id){
         let targetConversation;
-        let { conversationId } = req.body;
+        let conversationId = req.query.conversation_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (!targetConversation){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
@@ -196,14 +198,15 @@ router.post('/set_read_message', verify, async (req, res) => {
 router.post('/get_list_conversation', verify, async (req, res) => {
     let code, message;
     let id = req.user.id;
-    let { index, count } = req.body;
+    let thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
+    let { index, count } = req.query;
     var numNewMessage = 0;
     let data = [];
-    if (req.body.index === undefined || req.body.count === undefined){
-        code = "1002";
-        message = "Please enter all fields";
-        res.json({ code, message });
-        return;
+    if (req.query.index === undefined || req.query.count === undefined){
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'index and count');
     }
     var conversations = [];
     let conversationFirst = await Conversation.find({ firstUser: id });
@@ -218,6 +221,9 @@ router.post('/get_list_conversation', verify, async (req, res) => {
     let endFor = conversations.length < index + count ? conversations.length : index + count;
     for (let i = index; i < endFor; i++){
         let x = conversations[i];
+        if (x.conversationId == null || x.conversationId == ""){
+            continue;
+        }
         let conversationInfo = {
             id: null,
             partner: {
@@ -245,7 +251,12 @@ router.post('/get_list_conversation', verify, async (req, res) => {
         conversationInfo.partner.avatar = partner.avatar;
         conversationInfo.lastMessage.message = lastDialog.content;
         conversationInfo.lastMessage.created = lastDialog.created;
-        conversationInfo.lastMessage.unread = !lastDialog.read;
+        if (lastDialog.read === undefined || lastDialog.read == null){
+            conversationInfo.lastMessage.unread = false
+        }
+        else{
+            conversationInfo.lastMessage.unread = !lastDialog.read;
+        }
         for (dialog in x.dialog){
             if (x.dialog[dialog].read == false){
                 numNewMessage += 1;
@@ -255,12 +266,13 @@ router.post('/get_list_conversation', verify, async (req, res) => {
         data.push(conversationInfo);
     }
     code = "1000";
-    message = "Successfully get list of conversations";
+    message = "OK";
     res.json({ code, message, data, numNewMessage });
 });
 
 router.post('/get_conversation', verify, async (req, res) => {
     let detail;
+    let code, message;
     let id = req.user.id;
     let thisUser = await User.findById(id);
     if (thisUser.isBlocked){
@@ -269,12 +281,14 @@ router.post('/get_conversation', verify, async (req, res) => {
     let data = {
         conversation: []
     }
-    if (req.body.index === undefined || req.body.count === undefined){
+    if (req.query.index === undefined || req.query.count === undefined){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'index and count');
     }
-    if (req.body.partnerId){
+    if (req.query.partner_id){
         let targetConversation;
-        let { index, count, partnerId } = req.body;
+        let index = req.query.index;
+        let count = req.query.count;
+        let partnerId = req.query.partner_id;
         let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
         let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         if (targetConversation1){
@@ -306,24 +320,24 @@ router.post('/get_conversation', verify, async (req, res) => {
             }
             let targetUser;
             targetUser = await User.findById(x.sender);
-            if (!dialogInfo.message || !dialogInfo.message_id || !dialogInfo.created || dialogInfo.message == '' || dialogInfo.message_id == '' || dialogInfo.created == ''){
+            if (x.content === undefined || x.dialogId === undefined || x.created === undefined || x.content == '' || x.dialogId == '' || x.created == ''){
                 continue;
             }
             dialogInfo.message = x.content;
             dialogInfo.message_id = x.dialogId;
             dialogInfo.unread = !x.read;
             dialogInfo.created = x.created;
-            if (!targetUser.isBlocked){
-                dialogInfo.sender.id = targetUser._id;
-                dialogInfo.sender.username = targetUser.name;
-                dialogInfo.sender.avatar = targetUser.avatar;
-            }
+            dialogInfo.sender.id = targetUser._id;
+            dialogInfo.sender.username = targetUser.name;
+            dialogInfo.sender.avatar = targetUser.avatar;
             data.conversation.push(dialogInfo);
         }
     }
-    else if (req.body.conversationId) {
+    else if (req.query.conversation_id) {
         let targetConversation;
-        let { index, count, conversationId } = req.body;
+        let index = req.query.index;
+        let count = req.query.count;
+        let conversationId = req.query.conversation_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (!targetConversation){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
@@ -357,7 +371,9 @@ router.post('/get_conversation', verify, async (req, res) => {
     else{
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'conversation_id or partner_id');
     }
-    return callRes(res, responseError.OK, 'Successfully get conversation');
+    code = "1000";
+    message = "OK";
+    res.json({ code, message, data });
 });
 
 module.exports = router;
