@@ -79,7 +79,7 @@ router.post ('/get_user_info', async (req, res) => {
     user = await User.findById(user_id);
     if (!user) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'user');
     if (tokenUser && user_id != tokenUser.id && user.blockedList ) {
-      let index = user.blockedList.findIndex(element => element.user._id.equals(tokenUser._id));
+      let index = user.blockedList.findIndex(element => element.user._id.equals(tokenUser.id));
       if (index >= 0) return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'bị block rồi em ơi, khổ quá');
     }
     data.id = user._id.toString();
@@ -108,7 +108,7 @@ var cpUpload = uploader.fields([{ name: 'avatar'}, { name: 'cover_image'}]);
 router.post('/set_user_info', cpUpload, verify, async (req, res) => {
   let { username, description, address, city,country, link} = req.body;
   let fileAvatar, fileCoverImage, linkAvatar, linkCoverImage;
-  let user, promise1, promise2;
+  let user, promise1, promise2, inputError;
   if (req.files.avatar != undefined) {
     if (req.files.avatar.length >1) 
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'avatar >= 2 files');
@@ -121,6 +121,10 @@ router.post('/set_user_info', cpUpload, verify, async (req, res) => {
   }
   if (username && typeof username !== "string")
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'username');
+  checkInput.checkUserName(username)
+    .then(result => console.log(result, ' passed!'))
+    .catch(err => inputError = err)
+  if (inputError) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username: '+ inputError);
   if (description && typeof description !== "string")
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'description');
   if (address && typeof address !== "string")
