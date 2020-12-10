@@ -11,7 +11,9 @@ const validTime = require('../utils/validTime');
 
 //Not API
 router.post('/create_conversation', async (req, res) => {
-    let { conversationId, firstUserId, secondUserId } = req.query;
+    let conversationId = req.query.conversationId;
+    let firstUserId = req.query.firstUser;
+    let secondUserId = req.query.secondUser;
     let firstUser, secondUser;
     firstUser = await User.findById(firstUserId);
     secondUser = await User.findById(secondUserId);
@@ -25,7 +27,10 @@ router.post('/create_conversation', async (req, res) => {
 });
 //Not API
 router.post('/add_dialog', async (req, res) => {
-    let { conversationId, dialogId, senderId, content } = req.query;
+    let conversationId = req.query.conversationId;
+    let dialogId = req.query.dialogId;
+    let senderId = req.query.senderId;
+    let content = req.query.content;
     let conversation, sender;
     sender = await User.findById(senderId);
     conversation = await Conversation.findOne({conversationId});
@@ -47,6 +52,11 @@ router.post('/delete_conversation', verify, async (req, res) => {
     if (req.query.partner_id){
         let targetConversation;
         let partnerId = req.query.partner_id;
+        try{
+            let partnerUser = await User.findById(partnerId);
+        } catch (err){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
+        }
         let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
         let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         if (targetConversation1){
@@ -68,8 +78,11 @@ router.post('/delete_conversation', verify, async (req, res) => {
         let targetConversation;
         let conversationId = req.query.conversation_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
-        if (!targetConversation){
+        if (targetConversation == null){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
+        }
+        if (targetConversation.firstUser != id && targetConversation.secondUser != id){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'This is not your conversation');
         }
         await Conversation.deleteOne({ _id: targetConversation._id });
     }
@@ -89,9 +102,15 @@ router.post('/delete_message', verify, async (req, res) => {
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'message_id');
     }
     if (req.query.partner_id){
+        let flag = false;
         let targetConversation;
         let partnerId = req.query.partner_id;
-        let messageId = req.query.message_id
+        let messageId = req.query.message_id;
+        try{
+            let partnerUser = await User.findById(partnerId);
+        } catch (err){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
+        }
         let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
         let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         if (targetConversation1){
@@ -111,6 +130,7 @@ router.post('/delete_message', verify, async (req, res) => {
             if (targetConversation.dialog[dialog].dialogId == messageId){
                 if (targetConversation.dialog[dialog].sender == id){
                     targetConversation.dialog.splice(dialog, 1);
+                    flag = true;
                     break;
                 }
                 else{
@@ -118,26 +138,34 @@ router.post('/delete_message', verify, async (req, res) => {
                 }
             }
         }
+        if (!flag){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find message');
+        }
         targetConversation = await targetConversation.save();
     }
     else if (req.query.conversation_id){
+        let flag = false;
         let targetConversation;
         let conversationId = req.query.conversation_id;
         let messageId = req.query.message_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
-        if (!targetConversation){
+        if (targetConversation == null){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         for (dialog in targetConversation.dialog){
             if (targetConversation.dialog[dialog].dialogId == messageId){
                 if (targetConversation.dialog[dialog].sender == id){
                     targetConversation.dialog.splice(dialog, 1);
+                    flag = true;
                     break;
                 }
                 else{
                     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'This is not your message');
                 }
             }
+        }
+        if (!flag){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find message');
         }
         targetConversation = await targetConversation.save();
     }
@@ -156,6 +184,11 @@ router.post('/set_read_message', verify, async (req, res) => {
     if (req.query.partner_id){
         let targetConversation;
         let partnerId = req.query.partner_id;
+        try{
+            let partnerUser = await User.findById(partnerId);
+        } catch (err){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
+        }
         let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
         let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         if (targetConversation1){
@@ -180,7 +213,7 @@ router.post('/set_read_message', verify, async (req, res) => {
         let targetConversation;
         let conversationId = req.query.conversation_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
-        if (!targetConversation){
+        if (targetConversation == null){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         for (dialog in targetConversation.dialog){
