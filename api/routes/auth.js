@@ -38,6 +38,8 @@ const uploader = multer({
 // Item Model
 const User = require("../models/User");
 const Setting = require("../models/Setting");
+const verifyToken = require('../utils/verifyToken');
+const LCS = require('../utils/LCS');
 
 // @route  POST it4788/signup
 // @desc   Register new user
@@ -275,41 +277,58 @@ router.post('/login', async (req, res) => {
   }
 })
 
-router.post("/change_password", (req, res) => {
-  const { token, oldPassword, newPassword } = req.body;
+router.post("/change_password", verifyToken, async (req, res) => {
+  const { token, password, new_password } = req.query;
 
-  if (!token || !oldPassword || !newPassword) {
-    return res.status(400).json({ code: 1004, message: "Please enter all fields" })
+  if (!password || !new_password) {
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'password, new_password');
   }
-  if (!validInput.checkUserPassword(oldPassword)) {
-    return res.status(400).json({ code: 1004, message: "Old password is invalid" });
+  if (typeof password != 'string' || typeof new_password != 'string') {
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'password, new_password');
   }
-  if (!validInput.checkUserPassword(newPassword)) {
-    return res.status(400).json({ code: 1004, message: "New password is invalid" });
+  if (!validInput.checkUserPassword(password)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password');
   }
-  jwt.verify(token, process.env.jwtSecret, (err, user) => {
+  if (!validInput.checkUserPassword(new_password)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'new_password');
+  }
 
-    // not valid token
-    if (("undefined" === typeof (user))) {
-      return res.json({ code: 1004, message: "Invalid token" });
-    }
+  if (password == new_password) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'new_password == password');
+  }
 
-    // valid token
-    User.findById(user.id, (err, user) => {
-      bcrypt.compare(oldPassword, user.password)
-        .then(isMatch => {
-          if (!isMatch) return res.status(400).json({ code: 9995, message: "Wrong old password" })
-          else
-            bcrypt.genSalt(10, (err, salt) => {
-              bcrypt.hash(newPassword, salt, (err, hash) => {
-                if (err) throw err;
-                user.password = hash;
-                user.save()
-                  .then(() => res.json({ code: 1000, message: "Your password has been changed" }))
-                  .catch(err => res.json({ code: 1005, message: err.message }))
-              })
-            })
-        })
+  // Check xau con chung dai nhat > 80%
+  var tylexauconchungtrenmatkhaumoi = LCS(password, new_password).length/new_password.length;
+  if(tylexauconchungtrenmatkhaumoi > 0.8) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'new_password va password co xau con chung/new_password > 80%');
+  }
+
+  let user;
+  try {
+    user = await User.findById(req.user.id);
+  } catch (err) {
+    console.log("Can not connect to DB");
+    return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+  }
+
+  var isPassword = bcrypt.compareSync(password, user.password);
+  if(!isPassword) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password khong dung');
+  }
+
+  //hash the password before save to DB
+  bcrypt.genSalt(10, (err, salt) => {
+    if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+    bcrypt.hash(new_password, salt, async (err, hash) => {
+      if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+      user.password = hash;
+      try {
+        user.dateLogin = undefined;
+        let saved = await user.save();
+        return callRes(res, responseError.OK, null);
+      } catch (error) {
+        return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB, error.message);
+      }
     })
   })
 });
