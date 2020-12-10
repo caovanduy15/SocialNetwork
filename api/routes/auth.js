@@ -236,6 +236,9 @@ router.post('/login', async (req, res) => {
   if (!validInput.checkUserPassword(password)) {
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password');
   }
+  if (phoneNumber == password) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'trùng phone và pass');
+  }
   try {
     // check for existing user
     let user = await User.findOne({ phoneNumber });
