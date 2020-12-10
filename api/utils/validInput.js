@@ -47,7 +47,15 @@ var checkUserName = (userName) => {
   })
 }
 
+// check link 
+var checkLink = link => {
+  let banLink = ['bilutv.com', 'hayhaytv.com', 'hdviet.com', 'phimmoi.net', 'hdonline.vn', 'phimbathu.com', 'vnhackers.com'];
+  let result = banLink.filter(e => link.includes(e));
+  if (result.length > 0) return false;
+  else return true;
+}
 // checkUserName('thanh _sh9 ')
 //   .then(res => console.log(res))
 //   .catch(err => console.error(err));
-module.exports = { checkUserPassword, checkPhoneNumber, checkNotNegativeInteger, checkIsInteger, checkVerifyCode, checkUserName};
+// console.log(checkLink('http://vnhackers.com.com/gg'))
+module.exports = { checkUserPassword, checkPhoneNumber, checkNotNegativeInteger, checkIsInteger, checkVerifyCode, checkUserName, checkLink};

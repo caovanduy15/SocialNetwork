@@ -119,22 +119,33 @@ router.post('/set_user_info', cpUpload, verify, async (req, res) => {
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'cover_image >= 2 files');
     fileCoverImage = req.files.cover_image[0];
   }
-  if (username && typeof username !== "string")
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'username');
-  checkInput.checkUserName(username)
-    .then(result => console.log(result, ' passed!'))
-    .catch(err => inputError = err)
-  if (inputError) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username: '+ inputError);
-  if (description && typeof description !== "string")
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'description');
+  if (username )
+  {
+    if( typeof username !== "string")
+      return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'username');
+    checkInput.checkUserName(username)
+      .then(result => console.log(result, ' passed!'))
+      .catch(err => inputError = err)
+    if (inputError) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username: '+ inputError);
+  }
+  if (description) {
+    if (typeof description !== "string")
+      return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'description');
+    if (description.length > 150)
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'description length');
+  }  
   if (address && typeof address !== "string")
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'address');
   if (city && typeof city !== "string")
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'city');
   if (country && typeof country !== "string")
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'country');
-  if (link && typeof link !== "string")
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'link');
+  if (link ){
+    if( typeof link !== "string" )
+      return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'link');
+    if (!validInput.checkLink(link)) 
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'link '+link+' banned');
+  }
   try {
     try {
       user = await User.findById(req.user.id);
