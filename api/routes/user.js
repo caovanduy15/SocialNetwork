@@ -35,7 +35,21 @@ router.post ('/get_user_info', async (req, res) => {
   if (token) {
     jwt.verify(token, process.env.jwtSecret, (err, decoded) => {
       if (err) tokenError = err;
-      else tokenUser = decoded;
+      else {
+        User.findById(decoded.id, (err, user) => {
+          if (err) tokenError = err;
+          if (user.dateLogin) {
+              var date = new Date(decoded.dateLogin);
+              if (user.dateLogin.getTime() == date.getTime()) {
+                tokenUser = decoded;
+              } else {
+                tokenError = 'TOKEN_IS_INVALID';
+              }
+          } else {
+            tokenError = 'TOKEN_IS_INVALID';
+          }
+        })
+      }
     })
   }
   if (tokenError) return callRes(res, responseError.TOKEN_IS_INVALID);
@@ -64,6 +78,10 @@ router.post ('/get_user_info', async (req, res) => {
   try {
     user = await User.findById(user_id);
     if (!user) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'user');
+    if (tokenUser && user_id != tokenUser.id && user.blockedList ) {
+      let index = thisUser.blockedList.findIndex(element => element.user._id.equals(targetUser._id));
+      if (index >= 0) return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'bị block rồi em ơi, khổ quá');
+    }
     data.id = user._id.toString();
     data.username = user.name;
     data.created = validTime.timeToSecond(user.createdAt);
