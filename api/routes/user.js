@@ -41,7 +41,7 @@ router.post ('/get_user_info', async (req, res) => {
           else {
             if (!user) tokenError = 'not found';
             else{
-              if (user.dateLogin) {
+              if (user.dateLogin && decoded.dateLogin) {
                   var date = new Date(decoded.dateLogin);
                   if (user.dateLogin.getTime() == date.getTime()) {
                     tokenUser = decoded;
