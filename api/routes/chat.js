@@ -60,13 +60,13 @@ router.post('/delete_conversation', verify, async (req, res) => {
         let targetConversation;
         let partnerId = req.query.partner_id;
         try{
-            let partnerUser = await User.findById(partnerId);
+            var partnerUser = await User.findById(partnerId);
         } catch (err){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
         }
         try{
-            let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
-            let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
+            var targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
+            var targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         }catch (err){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'partner_id');
         }
@@ -129,13 +129,13 @@ router.post('/delete_message', verify, async (req, res) => {
         let partnerId = req.query.partner_id;
         let messageId = req.query.message_id;
         try{
-            let partnerUser = await User.findById(partnerId);
+            var partnerUser = await User.findById(partnerId);
         } catch (err){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
         }
         try{
-            let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
-            let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
+            var targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
+            var targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         }catch (err){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'partner_id');
         }
@@ -222,13 +222,13 @@ router.post('/set_read_message', verify, async (req, res) => {
         let targetConversation;
         let partnerId = req.query.partner_id;
         try{
-            let partnerUser = await User.findById(partnerId);
+            var partnerUser = await User.findById(partnerId);
         } catch (err){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
         }
         try{
-            let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
-            let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
+            var targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
+            var targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         }catch (err){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'partner_id');
         }
@@ -291,6 +291,26 @@ router.post('/get_list_conversation', verify, async (req, res) => {
         return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
     }
     let { index, count } = req.query;
+    if (typeof index != "string"){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+    }
+    if (typeof count != "string"){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    index = parseInt(req.query.index);
+    count = parseInt(req.query.count);
+    if (isNaN(index)){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+    }
+    if (isNaN(count)){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    if (index < 0){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+    }
+    if (count < 0){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
     var numNewMessage = 0;
     let data = [];
     if (req.query.index === undefined || req.query.count === undefined){
@@ -381,12 +401,32 @@ router.post('/get_conversation', verify, async (req, res) => {
     }
     if (req.query.partner_id){
         let targetConversation;
-        let index = parseInt(req.query.index);
-        let count = parseInt(req.query.count);
+        let index = req.query.index;
+        let count = req.query.count;
+        if (typeof index != "string"){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+        }
+        if (typeof count != "string"){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
+        index = parseInt(req.query.index);
+        count = parseInt(req.query.count);
+        if (isNaN(index)){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+        }
+        if (isNaN(count)){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
+        if (index < 0){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+        }
+        if (count < 0){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
         let partnerId = req.query.partner_id;
         try{
-            let targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
-            let targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
+            var targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
+            var targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
         }catch (err){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'partner_id');
         }
@@ -440,8 +480,28 @@ router.post('/get_conversation', verify, async (req, res) => {
     }
     else if (req.query.conversation_id) {
         let targetConversation;
-        let index = parseInt(req.query.index);
-        let count = parseInt(req.query.count);
+        let index = req.query.index;
+        let count = req.query.count;
+        if (typeof index != "string"){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+        }
+        if (typeof count != "string"){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
+        index = parseInt(req.query.index);
+        count = parseInt(req.query.count);
+        if (isNaN(index)){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+        }
+        if (isNaN(count)){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
+        if (index < 0){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+        }
+        if (count < 0){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
         let conversationId = req.query.conversation_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (!targetConversation){
