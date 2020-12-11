@@ -8,6 +8,7 @@ const {getUserIDFromToken} = require('../utils/getUserIDFromToken');
 var multer  = require('multer');
 const { Storage } = require('@google-cloud/storage');
 var {responseError, setAndSendResponse} = require('../response/error');
+const validInput = require('../utils/validInput');
 const MAX_IMAGE_NUMBER = 4;
 const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
 const MAX_VIDEO_NUMBER = 1;
@@ -91,6 +92,11 @@ router.post('/get_list_videos', async (req, res) => {
         || (token && typeof token !== "string")) {
         console.log("PARAMETER_TYPE_IS_INVALID");
         return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    if(!validInput.checkNumber(index) || !validInput.checkNumber(count)) {
+        console.log("chi chua cac ki tu so");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
     }
 
     index = parseInt(index, 10);
@@ -190,6 +196,11 @@ router.post('/get_list_posts', async (req, res) => {
         || (token && typeof token !== "string")) {
         console.log("PARAMETER_TYPE_IS_INVALID");
         return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    if(!validInput.checkNumber(index) || !validInput.checkNumber(count)) {
+        console.log("chi chua cac ki tu so");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
     }
 
     index = parseInt(index, 10);
