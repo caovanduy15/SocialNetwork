@@ -38,15 +38,20 @@ router.post ('/get_user_info', async (req, res) => {
       else {
         User.findById(decoded.id, (err, user) => {
           if (err) tokenError = err;
-          if (user.dateLogin) {
-              var date = new Date(decoded.dateLogin);
-              if (user.dateLogin.getTime() == date.getTime()) {
-                tokenUser = decoded;
+          else {
+            if (!user) tokenError = 'not found';
+            else{
+              if (user.dateLogin && decoded.dateLogin) {
+                  var date = new Date(decoded.dateLogin);
+                  if (user.dateLogin.getTime() == date.getTime()) {
+                    tokenUser = decoded;
+                  } else {
+                    tokenError = 'TOKEN_IS_INVALID';
+                  }
               } else {
                 tokenError = 'TOKEN_IS_INVALID';
               }
-          } else {
-            tokenError = 'TOKEN_IS_INVALID';
+            }
           }
         })
       }
