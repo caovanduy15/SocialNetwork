@@ -17,6 +17,7 @@ module.exports = function (req, res, next) {
         const verified = jwt.verify(token, process.env.jwtSecret);
         User.findById(verified.id, (err, user) => {
             if (err) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'no-user');
+            if(!user) return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'user da bi xoa khoi csdl');
             if (user.dateLogin) {
                 var date = new Date(verified.dateLogin);
                 if (user.dateLogin.getTime() == date.getTime()) {

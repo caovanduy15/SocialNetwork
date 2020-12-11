@@ -9,7 +9,11 @@ module.exports.getUserIDFromToken = async function(token) {
     try {
         const verified = jwt.verify(token, process.env.jwtSecret);
         const user = await User.findById(verified.id);
-        if (user.dateLogin) {
+        if(!user) {
+            console.log("User da bi xoa khoi csdl");
+            return undefined;
+        }
+        if (user && user.dateLogin) {
             var date = new Date(verified.dateLogin);
             if (user.dateLogin.getTime() == date.getTime())
             {
