@@ -11,7 +11,7 @@ const User = require('../models/User');
 var multer  = require('multer');
 const { Storage } = require('@google-cloud/storage');
 const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
-
+const {getUserIDFromToken} = require('../utils/getUserIDFromToken');
 // Create new storage instance with Firebase project credentials
 const storage = new Storage({
   projectId: process.env.GCLOUD_PROJECT_ID,
@@ -33,32 +33,12 @@ router.post ('/get_user_info', async (req, res) => {
   let { token, user_id } = req.query;
   let tokenUser, tokenError;
   if (token) {
-    jwt.verify(token, process.env.jwtSecret, (err, decoded) => {
-      if (err) tokenError = err;
-      else {
-        User.findById(decoded.id, (err, user) => {
-          if (err) tokenError = err;
-          else {
-            if (!user) tokenError = 'not found';
-            else{
-              if (user.dateLogin && decoded.dateLogin) {
-                  var date = new Date(decoded.dateLogin);
-                  if (user.dateLogin.getTime() == date.getTime()) {
-                    tokenUser = decoded;
-                  } else {
-                    tokenError = 'TOKEN_IS_INVALID';
-                  }
-              } else {
-                tokenError = 'TOKEN_IS_INVALID';
-              }
-            }
-          }
-        })
-      }
-    })
+    tokenUser = await getUserIDFromToken(token);
+    if (tokenUser === undefined) return callRes(res, responseError.TOKEN_IS_INVALID);
   }
-  if (tokenError) return callRes(res, responseError.TOKEN_IS_INVALID);
-  if (!user_id && tokenUser ) user_id = tokenUser.id;
+  if (!user_id && tokenUser ) {
+    user_id = tokenUser.id;
+  }
   else {
     if (user_id && typeof user_id != 'string')
       return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
@@ -128,7 +108,7 @@ router.post('/set_user_info', cpUpload, verify, async (req, res) => {
   {
     if( typeof username !== "string")
       return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'username');
-    checkInput.checkUserName(username)
+    await checkInput.checkUserName(username)
       .then(result => console.log(result, ' passed!'))
       .catch(err => inputError = err)
     if (inputError) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username: '+ inputError);
