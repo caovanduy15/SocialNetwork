@@ -3,34 +3,55 @@ const Post = require('../models/Post');
 const Search = require('../models/Search');
 const verify = require('../utils/verifyToken');
 const removeAccents  = require('../utils/removeAccents');
-const { responseError } = require('../response/error');
 const { ObjectId } = require('mongodb');
-
+const {responseError, callRes, setAndSendResponse} = require('../response/error');
+const validInput = require('../utils/validInput');
 
 // search posts by keyword
 router.post('/', verify, (req, res) => {
 
-    const { keyword, index, count} = req.body;
+    var { keyword, index, count} = req.query;
 
-    // if we get none query params then return []
-    if (!keyword) return res.status(400).json({
-        "code": 1002,
-        "message": "You must add a keyword to search something"
-    });
+    // PARAMETER_IS_NOT_ENOUGH
+    if((index !== 0 && !index) || (count !== 0 && !count) || (keyword !== 0 && !keyword)) {
+        console.log("No have parameter index, count");
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+    }
+
+    // parameter is invalid
+    if (typeof keyword != "string" || typeof index != "string" || typeof count != "string"){
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    if(!validInput.checkNumber(index) || !validInput.checkNumber(count)) {
+        console.log("chi chua cac ki tu so");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    index = parseInt(index, 10);
+    count = parseInt(count, 10);
+    if(isNaN(index) || isNaN(count)) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
 
     console.log("searching posts with keyword: " + keyword)
-
-    const found_posts = []
+    var found_posts = []
 
     Post.find(
         { "described": {$ne: null} }, 
+        null, {sort: '-created'},
         (err, posts) => {
-            if (err) res.status(500).json({
-                code: 1005,
-                message: err
-            })
 
-            console.log(posts.length)
+            // problem with DB
+            if (err) return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+
+            // NO_DATA_OR_END_OF_LIST_DATA
+            if(posts.length < 1) {
+                console.log('No have posts');
+                return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
+            }
 
             const newSearch = Search({
                 user: req.user.id,
@@ -39,24 +60,17 @@ router.post('/', verify, (req, res) => {
             newSearch.save()
 
             // condition 1: match exactly
-            var tmp = []
             posts.forEach( (post, index, object) => {
                 if (post["described"].toLowerCase().includes(keyword.toLowerCase())){
-                    var item = {}
-                    item[post._id] = post["described"]
-                    item["criteria"] = 1
-                    tmp.push(post)
-                    found_posts.push(item)
+                    found_posts.push(post)
                 }
             });
 
-            posts = posts.filter(item => !tmp.includes(item))
+            posts = posts.filter(item => !found_posts.includes(item))
 
             // condition 2: enough words and ignore the order
-            tmp = []
             var words = keyword.split(" ")
             posts.forEach( (post, index, object) => {
-
                 var accepted = true
                 words.forEach(word => {
                     if (!post["described"].toLowerCase().includes(word.toLowerCase())){
@@ -64,19 +78,12 @@ router.post('/', verify, (req, res) => {
                         return;
                     }
                 })
-                if (accepted){
-                    var item = {}
-                    item[post._id] = post["described"]
-                    item["criteria"] = 2
-                    tmp.push(post)
-                    found_posts.push(item)
-                }
+                if (accepted) found_posts.push(post)
             });
 
-            posts = posts.filter(item => !tmp.includes(item))
+            posts = posts.filter(item => !found_posts.includes(item))
 
             // condition 3: 20% of keyword in described and in the right order
-            tmp = []
             num_words = Math.ceil(words.length*0.2)
             console.log("num words: " + num_words)
             search_text = []
@@ -93,16 +100,10 @@ router.post('/', verify, (req, res) => {
                         return;
                     }
                 })
-                if (accepted){
-                    var item = {}
-                    item[post._id] = post["described"]
-                    item["criteria"] = 3
-                    tmp.push(post)
-                    found_posts.push(item)
-                }
+                if (accepted) found_posts.push(post)
             });
 
-            posts = posts.filter(item => !tmp.includes(item))
+            posts = posts.filter(item => !found_posts.includes(item))
 
             // condition 4: ignore accents
             posts.forEach( (post, index, object) => {
@@ -115,21 +116,18 @@ router.post('/', verify, (req, res) => {
                         return;
                     }
                 })
-                if (accepted){
-                    var item = {}
-                    item[post._id] = post["described"]
-                    item["criteria"] = 4
-                    tmp.push(post)
-                    found_posts.push(item)
-                }
+                if (accepted) found_posts.push(post)
             });
 
-            posts = posts.filter(item => !tmp.includes(item))
+            posts = posts.filter(item => !found_posts.includes(item))
+            found_posts = found_posts.slice(index, index+count)
 
             return res.json({
-                "code": 1000,
-                "message": `found ${found_posts.length} posts with search keyword \'${keyword}\'`,
-                "posts": found_posts
+                "code": "1000",
+                "message": "OK",
+                "data": {
+                    "posts": found_posts
+                }
             })
 
         }
