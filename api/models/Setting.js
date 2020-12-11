@@ -15,7 +15,7 @@ const settingSchema = Schema(
       type: Schema.Types.Number,
       default: 1
     },
-    from_friend: {
+    from_friends: {
       type: Schema.Types.Number,
       default: 1
     },
@@ -43,7 +43,7 @@ const settingSchema = Schema(
       type: Schema.Types.Number,
       default: 1
     },
-    notification_one: {
+    notification_on: {
       type: Schema.Types.Number,
       default: 1
     },
