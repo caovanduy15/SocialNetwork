@@ -91,18 +91,20 @@ router.post ('/get_user_info', async (req, res) => {
 
 var cpUpload = uploader.fields([{ name: 'avatar'}, { name: 'cover_image'}]);
 router.post('/set_user_info', cpUpload, verify, async (req, res) => {
-  let { username, description, address, city,country, link} = req.body;
+  let { username, description, address, city,country, link} = req.query;
   let fileAvatar, fileCoverImage, linkAvatar, linkCoverImage;
   let user, promise1, promise2, inputError;
-  if (req.files.avatar != undefined) {
-    if (req.files.avatar.length >1) 
-      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'avatar >= 2 files');
-    fileAvatar = req.files.avatar[0];
-  }
-  if (req.files.cover_image != undefined) {
-    if (req.files.cover_image.length >1) 
-      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'cover_image >= 2 files');
-    fileCoverImage = req.files.cover_image[0];
+  if (req.files){
+    if (req.files.avatar != undefined) {
+      if (req.files.avatar.length >1) 
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'avatar >= 2 files');
+      fileAvatar = req.files.avatar[0];
+    }
+    if (req.files.cover_image != undefined) {
+      if (req.files.cover_image.length >1) 
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'cover_image >= 2 files');
+      fileCoverImage = req.files.cover_image[0];
+    }
   }
   if (username )
   {
