@@ -108,7 +108,12 @@ router.post('/get_list_videos', async (req, res) => {
 
     var user, posts;
     try {
-        user = await getUserIDFromToken(token);
+        if(token) {
+            user = await getUserIDFromToken(token);
+            if(user && typeof user == "string") {
+                return setAndSendResponse(res, responseError[user]);
+            }
+        }
         posts = await Post.find({"video.url": { $ne: undefined }}).populate('author').sort("-created");
     } catch (err) {
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
@@ -212,7 +217,12 @@ router.post('/get_list_posts', async (req, res) => {
 
     var user, posts;
     try {
-        user = await getUserIDFromToken(token);
+        if(token) {
+            user = await getUserIDFromToken(token);
+            if(user && typeof user == "string") {
+                return setAndSendResponse(res, responseError[user]);
+            }
+        }
         posts = await Post.find().populate('author').sort("-created");
     } catch (err) {
         return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
@@ -304,7 +314,12 @@ router.post('/get_post', async (req, res) => {
 
     var user;
     try {
-        user = await getUserIDFromToken(token);
+        if(token) {
+            user = await getUserIDFromToken(token);
+            if(user && typeof user == "string") {
+                return setAndSendResponse(res, responseError[user]);
+            }
+        }
         const post = await Post.findById(id).populate('author');
         if(post) {
             res.status(200).send({
