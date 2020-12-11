@@ -2,26 +2,34 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 module.exports.getUserIDFromToken = async function(token) {
-    if(!token) {
-        return undefined;
-    }
-
     try {
         const verified = jwt.verify(token, process.env.jwtSecret);
-        const user = await User.findById(verified.id);
+        let user;
+        try {
+            user = await User.findById(verified.id);
+        } catch (err) {
+            if(err.kind == "ObjectId") {
+                console.log("Sai id");
+                return 'TOKEN_IS_INVALID';
+            }
+            return 'CAN_NOT_CONNECT_TO_DB';
+        }
         if(!user) {
             console.log("User da bi xoa khoi csdl");
-            return undefined;
+            return 'USER_IS_NOT_VALIDATED';
         }
         if (user && user.dateLogin) {
             var date = new Date(verified.dateLogin);
             if (user.dateLogin.getTime() == date.getTime())
             {
                 return user;
+            } else {
+                return 'TOKEN_IS_INVALID';
             }
+        } else {
+            return 'TOKEN_IS_INVALID';
         }
-        return undefined;
     } catch (err) {
-        return undefined;
+        return 'TOKEN_IS_INVALID';
     }
 }
