@@ -62,11 +62,15 @@ router.post('/delete_conversation', verify, async (req, res) => {
         if (targetConversation1){
             if (targetConversation1.secondUser == id){
                 targetConversation = targetConversation1;
+            }else {
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
             }
         }
         else if (targetConversation2){
             if (targetConversation2.firstUser == id){
                 targetConversation = targetConversation2;
+            }else {
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
             }
         }
         else {
@@ -116,11 +120,15 @@ router.post('/delete_message', verify, async (req, res) => {
         if (targetConversation1){
             if (targetConversation1.secondUser == id){
                 targetConversation = targetConversation1;
+            }else {
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
             }
         }
         else if (targetConversation2){
             if (targetConversation2.firstUser == id){
                 targetConversation = targetConversation2;
+            }else {
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
             }
         }
         else {
@@ -194,11 +202,15 @@ router.post('/set_read_message', verify, async (req, res) => {
         if (targetConversation1){
             if (targetConversation1.secondUser == id){
                 targetConversation = targetConversation1;
+            }else {
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
             }
         }
         else if (targetConversation2){
             if (targetConversation2.firstUser == id){
                 targetConversation = targetConversation2;
+            }else {
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
             }
         }
         else {
@@ -215,6 +227,9 @@ router.post('/set_read_message', verify, async (req, res) => {
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
         if (targetConversation == null){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
+        }
+        if (targetConversation.firstUser != id && targetConversation.secondUser != id){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'This is not your conversation');
         }
         for (dialog in targetConversation.dialog){
             targetConversation.dialog[dialog].read = true;
@@ -328,10 +343,16 @@ router.post('/get_conversation', verify, async (req, res) => {
             if (targetConversation1.secondUser == id){
                 targetConversation = targetConversation1;
             }
+            else {
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
+            }
         }
         else if (targetConversation2){
             if (targetConversation2.firstUser == id){
                 targetConversation = targetConversation2;
+            }
+            else {
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
             }
         }
         else {
