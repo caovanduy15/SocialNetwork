@@ -38,6 +38,8 @@ const uploader = multer({
 // Item Model
 const User = require("../models/User");
 const Setting = require("../models/Setting");
+const verifyToken = require('../utils/verifyToken');
+const LCS = require('../utils/LCS');
 
 // @route  POST it4788/signup
 // @desc   Register new user
@@ -57,12 +59,15 @@ router.post('/signup', async (req, res) => {
   }
   if (typeof phoneNumber != 'string' || typeof password != 'string') {
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phoneNumber, password');
-  } 
+  }
   if (!validInput.checkPhoneNumber(phoneNumber)) {
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phoneNumber');
   }
   if (!validInput.checkUserPassword(password)) {
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password');
+  }
+  if (phoneNumber == password) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'trùng phone và pass');
   }
   try {
     let user = await User.findOne({phoneNumber});
@@ -87,7 +92,7 @@ router.post('/signup', async (req, res) => {
             verifyCode: saved.verifyCode,
             isVerified: saved.isVerified
           }
-          return callRes(res, responseError.OK, data);  
+          return callRes(res, responseError.OK, data);
         } catch (error) {
           return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB, error.message);
         }
@@ -102,54 +107,116 @@ router.post('/signup', async (req, res) => {
 // @route  POST it4788/get_verify_code
 // @desc   get verified code
 // @access Public
-router.post('/get_verify_code', (req, res) => {
-  const { phoneNumber } = req.body;
+router.post('/get_verify_code', async (req, res) => {
+  const { phonenumber } = req.query;
 
-  if (!phoneNumber) {
-    return res.status(400).json({ msg: "Please enter your phone number" });
+  if (!phonenumber) {
+    console.log("PARAMETER_IS_NOT_ENOUGH phonenumber");
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phonenumber');
   }
 
-  User.findOne({ phoneNumber: phoneNumber }).then(user => {
-    if (!user) return res.status(400).json({ msg: "Invalid phone number" });
-    else res.json({
-      msg: "Success",
+  if (phonenumber && typeof phonenumber != 'string') {
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phonenumber');
+  }
+  if (!validInput.checkPhoneNumber(phonenumber)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phonenumber');
+  }
+
+  try {
+    let user = await User.findOne({ phoneNumber: phonenumber });
+    if(!user) {
+      console.log("phonenumber is not existed");
+      return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'phonenumber is not existed');
+    }
+
+    if(user.isVerified) {
+      console.log("user is verified");
+      return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER, 'user is verified');
+    }
+
+    if(user.timeLastRequestGetVerifyCode) {
+      let time = (Date.now() - user.timeLastRequestGetVerifyCode) / 1000;
+      console.log(time);
+      if(time < 120) {
+        console.log("2 lan lay get verify gan nhau < 120s");
+        return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER, 'Await ' + (120 - time) + 's');
+      }
+    }
+
+    user.timeLastRequestGetVerifyCode = Date.now();
+    await user.save();
+
+    let data = {
       verifyCode: user.verifyCode
-    });
-  });
+    }
+    return callRes(res, responseError.OK, data);
+  } catch (err) {
+    console.log(err);
+    console.log("CAN_NOT_CONNECT_TO_DB");
+    return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB);
+  }
 });
 
 
 // @route  POST it4788/check_verify_code
 // @desc   check verified code
 // @access Public
-router.post('/check_verify_code', (req, res) => {
-  const { phoneNumber, verifyCode } = req.body;
+router.post('/check_verify_code', async (req, res) => {
+  const { phonenumber, code_verify } = req.query;
 
-  if (!phoneNumber) {
-    return res.status(400).json({ msg: "Please enter your phone number" });
+  if (!phonenumber || !code_verify) {
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'phonenumber, code_verify');
+  }
+  if (typeof phonenumber != 'string' || typeof code_verify != 'string') {
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phonenumber, code_verify');
+  }
+  if (!validInput.checkPhoneNumber(phonenumber)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phonenumber');
+  }
+  if (!validInput.checkVerifyCode(code_verify)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'code_verify');
   }
 
-  if (!verifyCode) {
-    return res.status(400).json({ msg: "Please enter the code" });
-  }
-
-  User.findOne({ phoneNumber }).then(user => {
-    if (!user)
-      return res.status(400).json({ msg: "Invalid phone number" });
-    else if (user.verifyCode != verifyCode)
-      return res.status(400).json({ msg: "Wrong code" });
-    else {
-      user.isVerified = true;
-      user.save()
-        .then(() => res.json({
-          msg: "Your account has been verified",
-        }))
-        .catch(err => res.json({
-          code: 1005,
-          message: "Unknown Error"
-        }))
+  try {
+    let user = await User.findOne({ phoneNumber: phonenumber });
+    if(!user) {
+      console.log("phonenumber is not existed");
+      return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'phonenumber is not existed');
     }
-  });
+
+    if(user.isVerified) {
+      console.log("user is verified");
+      return callRes(res, responseError.USER_EXISTED, 'user is verified');
+    }
+
+    if(user.verifyCode != code_verify) {
+      console.log("code_verify sai");
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'code_verify is wrong');
+    }
+
+    user.isVerified = true;
+    user.verifyCode = undefined;
+    user.dateLogin = Date.now();
+    let loginUser = await user.save();
+
+    jwt.sign(
+      { id: loginUser.id, dateLogin: loginUser.dateLogin },
+      process.env.jwtSecret,
+      { expiresIn: 86400 },
+      (err, token) => {
+        if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+        let data = {
+          token: token,
+          id: user._id,
+          active: null
+        }
+        return callRes(res, responseError.OK, data);
+      });
+  } catch (err) {
+    console.log(err);
+    console.log("CAN_NOT_CONNECT_TO_DB");
+    return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB);
+  }
 });
 
 
@@ -164,12 +231,15 @@ router.post('/login', async (req, res) => {
   }
   if (typeof phoneNumber != 'string' || typeof password != 'string') {
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'phoneNumber, password');
-  } 
+  }
   if (!validInput.checkPhoneNumber(phoneNumber)) {
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phoneNumber');
   }
   if (!validInput.checkUserPassword(password)) {
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password');
+  }
+  if (phoneNumber == password) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'trùng phone và pass');
   }
   try {
     // check for existing user
@@ -207,41 +277,58 @@ router.post('/login', async (req, res) => {
   }
 })
 
-router.post("/change_password", (req, res) => {
-  const { token, oldPassword, newPassword } = req.body;
+router.post("/change_password", verifyToken, async (req, res) => {
+  const { token, password, new_password } = req.query;
 
-  if (!token || !oldPassword || !newPassword) {
-    return res.status(400).json({ code: 1004, message: "Please enter all fields" })
+  if (!password || !new_password) {
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'password, new_password');
   }
-  if (!validInput.checkUserPassword(oldPassword)) {
-    return res.status(400).json({ code: 1004, message: "Old password is invalid" });
+  if (typeof password != 'string' || typeof new_password != 'string') {
+    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'password, new_password');
   }
-  if (!validInput.checkUserPassword(newPassword)) {
-    return res.status(400).json({ code: 1004, message: "New password is invalid" });
+  if (!validInput.checkUserPassword(password)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password');
   }
-  jwt.verify(token, process.env.jwtSecret, (err, user) => {
+  if (!validInput.checkUserPassword(new_password)) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'new_password');
+  }
 
-    // not valid token
-    if (("undefined" === typeof (user))) {
-      return res.json({ code: 1004, message: "Invalid token" });
-    }
+  if (password == new_password) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'new_password == password');
+  }
 
-    // valid token
-    User.findById(user.id, (err, user) => {
-      bcrypt.compare(oldPassword, user.password)
-        .then(isMatch => {
-          if (!isMatch) return res.status(400).json({ code: 9995, message: "Wrong old password" })
-          else
-            bcrypt.genSalt(10, (err, salt) => {
-              bcrypt.hash(newPassword, salt, (err, hash) => {
-                if (err) throw err;
-                user.password = hash;
-                user.save()
-                  .then(() => res.json({ code: 1000, message: "Your password has been changed" }))
-                  .catch(err => res.json({ code: 1005, message: err.message }))
-              })
-            })
-        })
+  // Check xau con chung dai nhat > 80%
+  var tylexauconchungtrenmatkhaumoi = LCS(password, new_password).length/new_password.length;
+  if(tylexauconchungtrenmatkhaumoi > 0.8) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'new_password va password co xau con chung/new_password > 80%');
+  }
+
+  let user;
+  try {
+    user = await User.findById(req.user.id);
+  } catch (err) {
+    console.log("Can not connect to DB");
+    return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+  }
+
+  var isPassword = bcrypt.compareSync(password, user.password);
+  if(!isPassword) {
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'password khong dung');
+  }
+
+  //hash the password before save to DB
+  bcrypt.genSalt(10, (err, salt) => {
+    if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+    bcrypt.hash(new_password, salt, async (err, hash) => {
+      if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+      user.password = hash;
+      try {
+        user.dateLogin = undefined;
+        let saved = await user.save();
+        return callRes(res, responseError.OK, null);
+      } catch (error) {
+        return callRes(res, responseError.CAN_NOT_CONNECT_TO_DB, error.message);
+      }
     })
   })
 });
