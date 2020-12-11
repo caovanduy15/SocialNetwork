@@ -25,13 +25,13 @@ const ConversationSchema = new Schema({
         content: {
             type: String
         },
-        read: {
-            type: Boolean,
-            default: false
+        unread: {
+            type: Number,
+            default: 1
         },
         created: {
-            type: Number,
-            default: Math.floor(Date.now() / 1000)
+            type: Date,
+            default: Date.now()
         }
     }]
 });
