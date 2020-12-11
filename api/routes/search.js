@@ -138,26 +138,59 @@ router.post('/', verify, (req, res) => {
 
 // get saved search
 router.post('/get_saved_search', verify, (req, res) => {
+    var { index, count } = req.query;
+    // PARAMETER_IS_NOT_ENOUGH
+    if((index !== 0 && !index) || (count !== 0 && !count)) {
+        console.log("No have parameter index, count");
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+    }
+
+     // parameter is invalid
+     if (typeof index != "string" || typeof count != "string"){
+        console.log("PARAMETER_TYPE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    // validate index, count are number
+    if(!validInput.checkNumber(index) || !validInput.checkNumber(count)) {
+        console.log("chi chua cac ki tu so");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    index = parseInt(index, 10);
+    count = parseInt(count, 10);
+    if(isNaN(index) || isNaN(count)) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
     const user = req.user;
     Search.find(
         { user: user.id },
         null,
         { sort: '-createdAt'},
         (err, searches) => {
-            if (err) return res.status(500).json({
-                code: 1005,
-                message: err
-            })
-            unique_searches = Array.from(new Set(searches.map( item => item["keyword"] )))
+            // problem with DB
+            if (err) return setAndSendResponse(res, responseError.CAN_NOT_CONNECT_TO_DB);
+
+            // get the unique searches in history
+            var unique_searches = Array.from(new Set(searches.map( item => item["keyword"] )))
                                     .map(kw => {
                                         console.log(kw)
                                         return searches.find(item => item["keyword"] === kw)
                                     })
 
+            // NO_DATA_OR_END_OF_LIST_DATA
+            if(unique_searches.length < 1) {
+                console.log('No have searches history');
+                return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
+            }
+
             return res.json({
-                "code": 1000,
-                "message": `found ${unique_searches.length} searches in history`,
-                "posts": unique_searches.slice(0,20)
+                "code": "200",
+                "message": "OK",
+                "data": {
+                    "searches": unique_searches.slice(0,20)
+                }
             })
             
         }
@@ -167,60 +200,66 @@ router.post('/get_saved_search', verify, (req, res) => {
 
 // delete saved search
 router.post('/del_saved_search', verify, async (req, res) => {
-    const { search_id, all } = req.body
-    console.log(search_id)
-    console.log(all)
-    if (!search_id && all === null) return res.status(400).json({
-        "code": 1002,
-        "message": "You must provide search_id or all parameter to del search history"
-    })
+    var { search_id, all } = req.query
+    if (search_id !== 0 && !search_id && all !== 0 && !all) {
+        console.log("PARAMETER IS NOT ENOUGH")
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH)
+    }
 
-    if (all === 0 && !search_id) return res.status(400).json({
-        "code": 1002,
-        "message": "You must provide search_id to del search history"
-    })
+    // parameter is invalid
+    if (typeof search_id != "string" || typeof all != "string"){
+        return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    all = parseInt(all, 10)
+    if(isNaN(all) || all < 0) {
+        console.log("PARAMETER_VALUE_IS_INVALID");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID, all);
+    }
+
+    if (all === 0 && !search_id) {
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
 
     // if all=1 delete all search history of user
     if (all === 1) {
         var searches = await Search.find({ user: req.user.id });
-        if (!searches) return res.json({ "code": 9994, "message": "You don't have anything to delete all"})
-        else Search.deleteMany(searches, (err, result) => {
+        if (searches.length < 1) {
+            return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA)
+        }
+        else Search.deleteMany({user: req.user.id}, (err, result) => {
             if (err) {
-                res.json({
-                    "code": 1005,
-                    "message": "Unkown Errors"
-                })
+                console.log(err)
+                return callRes(res, responseError.UNKNOWN_ERROR)
             }else{
-                res.json({
-                    "code": 1000,
-                    "message": `deleted successfully ${searches.length} searches in history`
-                })
+                console.log(searches.length)
+                return callRes(res, responseError.OK)
+            }
+        })
+    }else{
+        // else del search by search id
+        try {
+            var search = await Search.findOne({
+                user: req.user.id,
+                _id: new ObjectId(search_id)
+            })
+        } catch (error) {
+            return callRes(res, responseError.UNKNOWN_ERROR)
+        }
+    
+        if (!search) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
+        else Search.deleteOne(
+            search,
+            (err, result) => {
+            if (err) {
+                return callRes(res, responseError.UNKNOWN_ERROR)
+            }else{
+                return callRes(res, responseError.OK, search_id)
             }
         })
     }
 
-    // else del search by search id
-    var search = await Search.findOne({
-        user: req.user.id,
-        _id: new ObjectId(search_id)
-    })
-    console.log(search)
-    if (!search) res.json({ "code": 9994, "message": "You don't have anything to delete all"})
-    else Search.deleteOne(
-        search,
-        (err, result) => {
-        if (err) {
-            res.json({
-                "code": 1005,
-                "message": err
-            })
-        }else{
-            res.json({
-                "code": 1000,
-                "message": `deleted successfully ${search_id} searches in history`
-            })
-        }
-    })
+    
 })
 
 
