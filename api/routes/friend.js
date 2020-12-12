@@ -147,53 +147,58 @@ router.post('/set_request_friend', verify, async (req, res) => {
 
 
 router.post("/set_block", verify, async(req, res) => {
-    let code, message;
-    let thisUser, targetUser;
+    var thisUser, targetUser;
 
     let { token, user_id, type } = req.query;
     let id = req.user.id;
+    thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
     if (!token || !user_id || !type){
-        code = 1002;
-        message = "Please enter all fields";
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and user_id and type');
+    }
+    if (type != 1 && type != 0){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'type');
     }
     if (user_id == id){
-        code = 1004;
-        message = "Can't block yourself";
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot block yourself');
     }
     thisUser = await User.findById(id);
-    targetUser = await User.findById(user_id);
+    try{
+        targetUser = await User.findById(user_id);
+    } catch (err){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find user wanting to block');
+    }
+    if (targetUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'User wanted to block has been blocked by server');
+    }
     if (!targetUser){
-        code = 9995;
-        message = "User not existed";
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'User wanted to block not existed');
     }
     else{
         let index = thisUser.blockedList.findIndex(element => element.user._id.equals(targetUser._id));
         if (index < 0) {
-            if (type == 1){
+            if (type == 0){
                 thisUser.blockedList.push({ user: targetUser._id, createdAt: Date.now() });
                 thisUser.save();
-                code = 1000;
-                message = "Successfully blocked this user";
+                return callRes(res, responseError.OK, 'Successfully block this user');
             }
             else{
-                code = 1004;
-                message = "You have already blocked this user";
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, "You haven't blocked this user");
             }
         }
         else{
-            if (type == 0){
+            if (type == 1){
                 thisUser.blockedList.splice(index, 1);
                 thisUser.save();
-                code = 1000;
-                message = "Successfully unblocked this user";
+                return callRes(res, responseError.OK, 'Successfully unblock this user');
             }
             else{
-                code = 1004;
-                message = "You haven't blocked this user";
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, "You have already blocked this user");
             }
         }
     }
-    res.json({ code, message });
 });
 
 // @route  POST it4788/friend/set_accept_friend
