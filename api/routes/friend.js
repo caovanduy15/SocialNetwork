@@ -285,31 +285,58 @@ router.post('/set_accept_friend', verify, async (req, res) => {
 
 router.post("/get_list_blocks", verify, async(req, res) => {
     let { token, index, count } = req.query;
+    if (token == ''|| index == '' || count == ''){
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and index and count');
+    }
+    if (typeof index != "string"){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+    }
+    if (typeof count != "string"){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    let isNumIndex = /^\d+$/.test(index);
+    if (!isNumIndex){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+    }
+    let isNumCount = /^\d+$/.test(count);
+    if (!isNumCount){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    index = parseInt(req.query.index);
+    count = parseInt(req.query.count);
+    if (index < 0){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+    }
+    if (count < 0){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    if (count == 0){
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
+    }
     let id = req.user.id;
+    let thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
     let code, message;
     let data = [];
     let targetUser;
-    if (!token || !index || !count){
-        code = 1002;
-        message = "Please enter all fields";
-    }
     targetUser = await User.findById(id);
     let endFor = targetUser.blockedList.length < index + count ? targetUser.blockedList.length : index + count;
     for (let i = index; i < endFor; i++) {
         let x = targetUser.blockedList[i];
+        let blockedUser = await User.findById(x.user);
         let userInfo = {
             id: null, // id of this guy
             username: null,
             avatar: null,
         }
-        userInfo.id = x.user._id.toString();
-        userInfo.username = x.user.name;
-        userInfo.avatar = x.user.avatar.url;
+        userInfo.id = blockedUser._id.toString();
+        userInfo.username = blockedUser.name;
+        userInfo.avatar = blockedUser.avatar;
         data.push(userInfo);
     }
-    code = 1000;
-    message = "Successfully get block list";
-    res.json({ code, message, data});
+    return callRes(res, responseError.OK, data);
 });
 
 // @route  POST it4788/friend/get_user_friends
