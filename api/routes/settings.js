@@ -14,14 +14,10 @@ router.post('/get_push_settings', verify, (req, res) => {
             else {
                 const {like_comment, from_friends, requested_friend, suggested_friend,
                     birthday, video, report, sound_on, notification_on, vibrant_on, led_on} = setting
-                return res.json({
-                    code: "1000",
-                    message: "OK",
-                    data: {
-                        like_comment, from_friends, requested_friend, suggested_friend,
-                        birthday, video, report, sound_on, notification_on, vibrant_on, led_on
-                    }
-                })
+                return callRes(res, responseError.OK, {
+                    like_comment, from_friends, requested_friend, suggested_friend,
+                    birthday, video, report, sound_on, notification_on, vibrant_on, led_on
+                }) 
             }
         }
     )
@@ -63,19 +59,17 @@ router.post('/set_push_settings', verify, (req, res) => {
     Setting.findOneAndUpdate(
         { "user": ObjectId(req.user.id) },
         update,
+        {new: true},
         (err, setting) => {
             if (err) {
                 return callRes(res, responseError.UNKNOWN_ERROR)
             }else{
                 const { like_comment, from_friends, requested_friend, suggested_friend,
                     birthday, video, report, sound_on, notification_on, vibrant_on, led_on } = setting
-                return res.json({
-                    code: "200",
-                    message: "OK",
-                    data: {
-                        like_comment, from_friends, requested_friend, suggested_friend,
-                        birthday, video, report, sound_on, notification_on, vibrant_on, led_on
-                    }
+                    console.log(setting)
+                return callRes(res, responseError.OK, {
+                    like_comment, from_friends, requested_friend, suggested_friend,
+                    birthday, video, report, sound_on, notification_on, vibrant_on, led_on
                 })
             }
         }
