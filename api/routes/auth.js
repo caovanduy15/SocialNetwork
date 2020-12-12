@@ -372,50 +372,32 @@ router.post("/set_devtoken", (req, res) => {
     return res.status(400).json({ code: 1000, message: "Your device information has been recorded" });
 });
 
-router.post("/change_info_after_signup", uploader.single('avatar'), (req, res) => {
+router.post("/change_info_after_signup", verify, uploader.single('avatar'), async (req, res) => {
   // do what you want
   // Validation
-  if (!req.file || !req.body.username) {
+  let code, message;
+  if (!req.file || !req.query.username) {
     return res.json({ code: 1004, message: "Please enter all the fields" });
   }
-  jwt.verify(req.body.token, config.get('jwtSecret'), (err, user) => {
-
-    // not valid token
-    if (("undefined" === typeof (user))) {
-      return res.json({ code: 1004, message: "Invalid token" });
-    }
-
-    User.findById(user.id, (err, user) => {
-      let promises;
-      promises = uploadFile(req.file);
-      promises.then(result => {
-        console.log(result);
-        user.name = req.body.username;
-        user.avatar = result;
-        user.save()
-          .then(result => {
-            res.status(201).send({
-              code: 1000,
-              message: "Successfully change user information",
-              data: {
-                id: user.id,
-                username: user.name,
-                phoneNumber: user.phoneNumber,
-                created: Date.now(),
-                avatar: user.avatar
-              }
-            });
-          })
-          .catch(err => {
-            // console.log(err);
-            res.status(500).send({
-              code: 1001,
-              message: "Can not connect to DB"
-            });
-          });
-      });
-    })
-  })
+     let id = req.user.id;
+     var user = await User.findById(id);
+     user.name = req.query.username;
+     let promise = await uploadFile(req.file);
+     user.avatar = promise;
+     user.save();
+     let data = {
+         code: "1000",
+         message: "OK",
+         data: {
+             id: user.id,
+             username: user.name,
+             phonenumber: user.phoneNumber,
+             created: String(Date.now()),
+             avatar: user.avatar.url
+         }
+     }
+     res.json({ code, message, data });
+     return;
 });
 
 router.post("/check_new_version", (req, res) => {
