@@ -208,6 +208,8 @@ router.post('/get_saved_search', verify, (req, res) => {
                 return setAndSendResponse(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
             }
 
+            unique_searches = unique_searches.slice(index, index+count);
+
             return res.json({
                 "code": "200",
                 "message": "OK",
