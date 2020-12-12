@@ -356,13 +356,17 @@ router.post("/logout", verify, async (req, res) => {
 
 router.post("/set_devtoken", verify, async (req, res) => {
   var { token, devtype, devtoken } = req.query;
-  if (!token || !devtype || !devtoken)
-    return res.status(400).json({ code: 1004, message: "Please enter all fields" });
+  if (token == ''|| devtype == ''|| devtoken == '')
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and devtype and devtoken');
   let id = req.user.id;
+  let thisUser = await User.findById(id);
+  if (thisUser.isBlocked){
+      return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+  }
   if (devtype != "Android" && devtype != "IOS")
-    return res.status(400).json({ code: 1004, message: "Invalid device type" });
+    return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'devtype');
   else
-    return res.status(400).json({ code: 1000, message: "Your device information has been recorded" });
+    return callRes(res, responseError.OK);
 });
 
 router.post("/change_info_after_signup", verify, uploader.single('avatar'), async (req, res) => {
@@ -377,8 +381,14 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
   if (!regex.test(str)){
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
   }
-  if (!req.file || !req.query.username) {
-    return res.json({ code: 1004, message: "Please enter all the fields" });
+  if (!req.file || req.query.username == '') {
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'username and avatar');
+  }
+  if (req.file.size > MAX_SIZE_IMAGE){
+      return callRes(res, responseError.FILE_SIZE_IS_TOO_BIG);
+  }
+  if (req.file.mimetype != 'image/jpeg' && req.file.mimetype != 'image/jpg' && req.file.mimetype != 'image/png'){
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'image type');
   }
      let id = req.user.id;
      var user = await User.findById(id);
@@ -393,7 +403,7 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
              id: user.id,
              username: user.name,
              phonenumber: user.phoneNumber,
-             created: String(Date.now()),
+             created: String(user.registerDate),
              avatar: user.avatar.url
          }
      }
@@ -401,31 +411,29 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
      return;
 });
 
-router.post("/check_new_version", (req, res) => {
-  var { token, lastUpdate } = req.query;
-  if (!token || !lastUpdate)
-    return res.status(400).json({ code: 1004, message: "Please enter all fields" });
- let id = req.user.id;
-  if (lastUpdate != currentVersion) {
-    return res.json({
-      code: 1000,
-      message: "You need to update your browser",
-      data: {
-        version: currentVersion,
-        required: 1,
-        url: "updateversion.com"
+router.post("/check_new_version", verify, async (req, res) => {
+  var { token, last_update } = req.query;
+  if (token == '' || last_update == '')
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and last_update');
+    let id = req.user.id;
+    let thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
+  if (last_update != currentVersion) {
+      data = {
+          version: currentVersion,
+          required: 1,
+          url: "updateversion.com"
       }
-    });
+    return callRes(res, responseError.OK, data);
   }
   else {
-    return res.json({
-      code: 1000,
-      message: "Your browser is up to date",
-      data: {
-        version: currentVersion,
-        required: 0,
+      data = {
+          version: currentVersion,
+          required: 0,
       }
-    });
+    return callRes(res, responseError.OK, data);
   }
 });
 
