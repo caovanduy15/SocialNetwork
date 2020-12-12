@@ -205,19 +205,21 @@ router.post('/check_verify_code', async (req, res) => {
     user.dateLogin = Date.now();
     let loginUser = await user.save();
 
-    jwt.sign(
-      { id: loginUser.id, dateLogin: loginUser.dateLogin },
-      process.env.jwtSecret,
-      { expiresIn: 86400 },
-      (err, token) => {
-        if (err) return callRes(res, responseError.UNKNOWN_ERROR, err.message);
-        let data = {
-          token: token,
-          id: user._id,
-          active: null
-        }
-        return callRes(res, responseError.OK, data);
-      });
+    try {
+      var token = jwt.sign(
+        { id: loginUser.id, dateLogin: loginUser.dateLogin },
+        process.env.jwtSecret,
+        { expiresIn: 86400 });
+      let data = {
+        token: token,
+        id: user._id,
+        active: null
+      }
+      return callRes(res, responseError.OK, data);
+    } catch (err) {
+      console.log(err);
+      return callRes(res, responseError.UNKNOWN_ERROR, err.message);
+    }
   } catch (err) {
     console.log(err);
     console.log("CAN_NOT_CONNECT_TO_DB");
