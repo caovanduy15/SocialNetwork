@@ -86,6 +86,12 @@ router.post('/signup', async (req, res) => {
         newUser.password = hash;
         try {
           let saved = await newUser.save();
+
+          // add default settings
+          await new Setting({
+            user: saved.id
+          }).save()
+
           let data = {
             id: saved.id,
             phoneNumber: saved.phoneNumber,

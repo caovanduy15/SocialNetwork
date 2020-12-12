@@ -4,6 +4,7 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const verify = require('../utils/verifyToken');
 var {responseError, setAndSendResponse} = require('../response/error');
+const validInput = require('../utils/validInput');
 const MAX_WORD_COMMENT = 500;
 const COUNT_DEFAULT  = 2;
 
@@ -27,6 +28,11 @@ router.post('/set_comment', verify, async (req, res) => {
     if((id && typeof id !== "string") || (comment && typeof comment !== "string") || (index && typeof index !== "string") || (count && typeof count !== "string")) {
         console.log("PARAMETER_TYPE_IS_INVALID");
         return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    if(!validInput.checkNumber(index) || !validInput.checkNumber(count)) {
+        console.log("chi chua cac ki tu so");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
     }
 
     index = parseInt(index, 10);
@@ -119,6 +125,11 @@ router.post('/get_comment', verify, async (req, res) => {
     if((id && typeof id !== "string") || (index && typeof index !== "string") || (count && typeof count !== "string")) {
         console.log("PARAMETER_TYPE_IS_INVALID");
         return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    if(!validInput.checkNumber(index) || !validInput.checkNumber(count)) {
+        console.log("chi chua cac ki tu so");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
     }
 
     index = parseInt(index, 10);

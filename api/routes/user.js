@@ -11,7 +11,7 @@ const User = require('../models/User');
 var multer  = require('multer');
 const { Storage } = require('@google-cloud/storage');
 const MAX_SIZE_IMAGE = 4 * 1024 * 1024; // for 4MB
-
+const {getUserIDFromToken} = require('../utils/getUserIDFromToken');
 // Create new storage instance with Firebase project credentials
 const storage = new Storage({
   projectId: process.env.GCLOUD_PROJECT_ID,
@@ -29,13 +29,21 @@ const uploader = multer({
   storage: multer.memoryStorage(),
 });
 
-router.post ('/get_user_info', verify, async (req, res) => {
-  let { user_id } = req.query;
-  if (!user_id) user_id = req.user.id;
+router.post ('/get_user_info', async (req, res) => {
+  let { token, user_id } = req.query;
+  let tokenUser, tokenError;
+  if (token) {
+    tokenUser = await getUserIDFromToken(token);
+    if (tokenUser === undefined) return callRes(res, responseError.TOKEN_IS_INVALID);
+  }
+  if (!user_id && tokenUser ) {
+    user_id = tokenUser.id;
+  }
   else {
     if (user_id && typeof user_id != 'string')
       return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
   }
+  if (!user_id) return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH)
   let user;
   let data = {
     id: null,
@@ -55,6 +63,10 @@ router.post ('/get_user_info', verify, async (req, res) => {
   try {
     user = await User.findById(user_id);
     if (!user) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'user');
+    if (tokenUser && user_id != tokenUser.id && user.blockedList ) {
+      let index = user.blockedList.findIndex(element => element.user._id.equals(tokenUser.id));
+      if (index >= 0) return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'bị block rồi em ơi, khổ quá');
+    }
     data.id = user._id.toString();
     data.username = user.name;
     data.created = validTime.timeToSecond(user.createdAt);
@@ -66,8 +78,9 @@ router.post ('/get_user_info', verify, async (req, res) => {
     data.city = user.city;
     data.country = user.country;
     data.listing = user.friends.length;
-    if (user_id != req.user.id) {
-      let indexExist = user.friends.findIndex(element => element.friend._id.equals(req.user.id)); 
+    data.is_friend = false;
+    if (tokenUser && user_id != tokenUser.id) {
+      let indexExist = user.friends.findIndex(element => element.friend._id.equals(tokenUser.id)); 
       data.is_friend =  (indexExist >= 0) ? true : false;
     }
     return callRes(res, responseError.OK, data);
@@ -76,25 +89,50 @@ router.post ('/get_user_info', verify, async (req, res) => {
   }
 });
 
-var cpUpload = uploader.fields([{ name: 'avatar', maxCount: 1 }, { name: 'cover_image', maxCount: 1 }]);
+var cpUpload = uploader.fields([{ name: 'avatar'}, { name: 'cover_image'}]);
 router.post('/set_user_info', cpUpload, verify, async (req, res) => {
-  let { username, description, address, city,country, link} = req.body;
+  let { username, description, address, city,country, link} = req.query;
   let fileAvatar, fileCoverImage, linkAvatar, linkCoverImage;
-  let user, promise1, promise2;
-  if (req.files.avatar != undefined) fileAvatar = req.files.avatar[0];
-  if (req.files.cover_image != undefined) fileCoverImage = req.files.cover_image[0];
-  if (username && typeof username !== "string")
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'username');
-  if (description && typeof description !== "string")
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'description');
+  let user, promise1, promise2, inputError;
+  if (req.files){
+    if (req.files.avatar != undefined) {
+      if (req.files.avatar.length >1) 
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'avatar >= 2 files');
+      fileAvatar = req.files.avatar[0];
+    }
+    if (req.files.cover_image != undefined) {
+      if (req.files.cover_image.length >1) 
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'cover_image >= 2 files');
+      fileCoverImage = req.files.cover_image[0];
+    }
+  }
+  if (username )
+  {
+    if( typeof username !== "string")
+      return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'username');
+    await checkInput.checkUserName(username)
+      .then(result => console.log(result, ' passed!'))
+      .catch(err => inputError = err)
+    if (inputError) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username: '+ inputError);
+  }
+  if (description) {
+    if (typeof description !== "string")
+      return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'description');
+    if (description.length > 150)
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'description length');
+  }  
   if (address && typeof address !== "string")
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'address');
   if (city && typeof city !== "string")
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'city');
   if (country && typeof country !== "string")
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'country');
-  if (link && typeof link !== "string")
-    return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'link');
+  if (link ){
+    if( typeof link !== "string" )
+      return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'link');
+    if (!validInput.checkLink(link)) 
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'link '+link+' banned');
+  }
   try {
     try {
       user = await User.findById(req.user.id);
