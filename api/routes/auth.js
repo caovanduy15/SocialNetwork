@@ -367,10 +367,6 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
   // do what you want
   // Validation
   let code, message;
-  if (req.file.buffer.byteLength > MAX_SIZE_IMAGE) {
-      console.log("FILE_SIZE_IS_TOO_BIG");
-      return setAndSendResponse(res, responseError.FILE_SIZE_IS_TOO_BIG);
-  }
   if (req.query.username.length == 0){
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
   }
