@@ -18,6 +18,8 @@ module.exports.getUserIDFromToken = async function(token) {
             console.log("User da bi xoa khoi csdl");
             return 'USER_IS_NOT_VALIDATED';
         }
+        if (user.isBlocked == true)  
+          return 'NOT_ACCESS';
         if (user && user.dateLogin) {
             var date = new Date(verified.dateLogin);
             if (user.dateLogin.getTime() == date.getTime())
