@@ -310,8 +310,11 @@ router.post('/get_list_conversation', verify, async (req, res) => {
     if (index < 0){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
     }
-    if (count <= 0){
+    if (count < 0){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    if (count == 0){
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
     }
     var numNewMessage = 0;
     let data = [];
@@ -424,8 +427,11 @@ router.post('/get_conversation', verify, async (req, res) => {
         if (index < 0){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
         }
-        if (count <= 0){
+        if (count < 0){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
+        if (count == 0){
+            return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
         }
         let partnerId = req.query.partner_id;
         try{
@@ -505,8 +511,11 @@ router.post('/get_conversation', verify, async (req, res) => {
         if (index < 0){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
         }
-        if (count <= 0){
+        if (count < 0){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
+        if (count == 0){
+            return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
         }
         let conversationId = req.query.conversation_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });

@@ -8,7 +8,7 @@ const convertString = require('../utils/convertString');
 const {responseError, callRes} = require('../response/error');
 const checkInput = require('../utils/validInput');
 const validTime = require('../utils/validTime');
-
+const removeAccents = require('../utils/removeAccents');
 
 
 var multer = require('multer');
@@ -352,20 +352,11 @@ router.post("/logout", verify, async (req, res) => {
   }
 })
 
-router.post("/set_devtoken", (req, res) => {
-  var { token, devtype, devtoken } = req.body;
+router.post("/set_devtoken", verify, async (req, res) => {
+  var { token, devtype, devtoken } = req.query;
   if (!token || !devtype || !devtoken)
     return res.status(400).json({ code: 1004, message: "Please enter all fields" });
-  jwt.verify(token, process.env.jwtSecret, (err, user) => {
-
-    // not valid token
-    if (("undefined" === typeof (user))) {
-      return res.json({ code: 1004, message: "Invalid token" });
-    }
-    if (user.isBlocked) {
-      return res.json({ code: 1004, message: "Your account is blocked" });
-    }
-  });
+  let id = req.user.id;
   if (devtype != "Android" && devtype != "IOS")
     return res.status(400).json({ code: 1004, message: "Invalid device type" });
   else
@@ -376,6 +367,18 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
   // do what you want
   // Validation
   let code, message;
+  if (req.file.buffer.byteLength > MAX_SIZE_IMAGE) {
+      console.log("FILE_SIZE_IS_TOO_BIG");
+      return setAndSendResponse(res, responseError.FILE_SIZE_IS_TOO_BIG);
+  }
+  if (req.query.username.length == 0){
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
+  }
+  let str = removeAccents(req.query.username);
+  var regex = /^[a-zA-Z][a-zA-Z_ ]*$/;
+  if (!regex.test(str)){
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
+  }
   if (!req.file || !req.query.username) {
     return res.json({ code: 1004, message: "Please enter all the fields" });
   }
@@ -401,19 +404,10 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
 });
 
 router.post("/check_new_version", (req, res) => {
-  var { token, lastUpdate } = req.body;
+  var { token, lastUpdate } = req.query;
   if (!token || !lastUpdate)
     return res.status(400).json({ code: 1004, message: "Please enter all fields" });
-  jwt.verify(token, process.env.jwtSecret, (err, user) => {
-
-    // not valid token
-    if (("undefined" === typeof (user))) {
-      return res.json({ code: 1004, message: "Invalid token" });
-    }
-    if (user.isBlocked) {
-      return res.json({ code: 1004, message: "Your account is blocked" });
-    }
-  })
+ let id = req.user.id;
   if (lastUpdate != currentVersion) {
     return res.json({
       code: 1000,
