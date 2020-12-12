@@ -34,7 +34,7 @@ router.post ('/get_user_info', async (req, res) => {
   let tokenUser, tokenError;
   if (token) {
     tokenUser = await getUserIDFromToken(token);
-    if (tokenUser === undefined) return callRes(res, responseError.TOKEN_IS_INVALID);
+    if (typeof tokenUser === 'string') return callRes(res, responseError[tokenUser]);
   }
   if (!user_id && tokenUser ) {
     user_id = tokenUser.id;
@@ -66,6 +66,9 @@ router.post ('/get_user_info', async (req, res) => {
     if (tokenUser && user_id != tokenUser.id && user.blockedList ) {
       let index = user.blockedList.findIndex(element => element.user._id.equals(tokenUser.id));
       if (index >= 0) return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'bị block rồi em ơi, khổ quá');
+      let index1 = tokenUser.blockedList.findIndex(element => element.user._id.equals(user.id));
+      if (index1 >= 0) return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'bị block rồi em ơi, khổ quá');
+
     }
     data.id = user._id.toString();
     data.username = user.name;
