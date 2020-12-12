@@ -5,6 +5,7 @@ const User = require('../models/User');
 const verify = require('../utils/verifyToken');
 var {responseError, setAndSendResponse} = require('../response/error');
 const validInput = require('../utils/validInput');
+const {getUserIDFromToken} = require('../utils/getUserIDFromToken');
 const MAX_WORD_COMMENT = 500;
 const COUNT_DEFAULT  = 2;
 
@@ -112,9 +113,8 @@ router.post('/set_comment', verify, async (req, res) => {
 // @route  POST it4788/comment/get_comment
 // @desc   add new comment
 // @access Public
-router.post('/get_comment', verify, async (req, res) => {
-    var {id, index, count} = req.query;
-    var user = req.user;
+router.post('/get_comment', async (req, res) => {
+    var {token, id, index, count} = req.query;
 
     if(!id || (index !== 0 && !index) || (count !== 0 && !count)) {
         console.log("No have parameter id, index, count");
@@ -122,7 +122,7 @@ router.post('/get_comment', verify, async (req, res) => {
     }
 
     // PARAMETER_TYPE_IS_INVALID
-    if((id && typeof id !== "string") || (index && typeof index !== "string") || (count && typeof count !== "string")) {
+    if((id && typeof id !== "string") || (index && typeof index !== "string") || (count && typeof count !== "string") || (token && typeof token !== "string")) {
         console.log("PARAMETER_TYPE_IS_INVALID");
         return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
     }
@@ -139,10 +139,15 @@ router.post('/get_comment', verify, async (req, res) => {
         return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
     }
 
-    var post, userDB;
+    var post, user;
     try {
+        if(token) {
+            user = await getUserIDFromToken(token);
+            if(user && typeof user == "string") {
+                return setAndSendResponse(res, responseError[user]);
+            }
+        }
         post = await Post.findById(id);
-        userDB = await User.findById(user.id);
     } catch (err) {
         if(err.kind == "ObjectId") {
             console.log("Sai id");
@@ -185,7 +190,7 @@ router.post('/get_comment', verify, async (req, res) => {
                         name: comment.poster.name,
                         avatar: comment.poster.avatar
                     } : undefined,
-                    is_blocked: is_blocked(userDB, comment.poster)
+                    is_blocked: is_blocked(user, comment.poster)
                 };
             })
         });
