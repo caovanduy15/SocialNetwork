@@ -422,8 +422,12 @@ CAN_NOT_CONNECT_TO_DB neu khong luu duoc post vao csdl
 */
 var cpUpload = uploader.fields([{ name: 'image'}, { name: 'video'}]);
 router.post('/add_post', cpUpload, verify, async (req, res, next) => {
-    var {described, status} = req.body;
-    var {image, video} = req.files;
+    var {described, status} = req.query;
+    var image, video;
+    if(req.files) {
+        image = req.files.image;
+        video = req.files.video;
+    }
     var user = req.user;
 
     // PARAMETER_TYPE_IS_INVALID
@@ -666,8 +670,12 @@ MAXIMUM_NUMBER_OF_IMAGES
 MAX_WORD_POST cua described
 */
 router.post('/edit_post', cpUpload, verify, async (req, res) => {
-    var { id, status, image_del, image_sort, described, auto_accept, auto_block } = req.body;
-    var {image, video} = req.files;
+    var { id, status, image_del, image_sort, described, auto_accept, auto_block } = req.query;
+    var image, video;
+    if(req.files) {
+        image = req.files.image;
+        video = req.files.video;
+    }
     var user = req.user;
 
     if(image_del) {
@@ -702,6 +710,16 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
     if((id && typeof id !== "string") || (described && typeof described !== "string") || (status && typeof status !== "string")) {
         console.log("PARAMETER_TYPE_IS_INVALID");
         return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+    }
+
+    if(described && countWord(described) > MAX_WORD_POST) {
+        console.log("MAX_WORD_POST");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
+    }
+
+    if(status && !statusArray.includes(status)) {
+        console.log("Sai status");
+        return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
     }
 
     if(image && video) {

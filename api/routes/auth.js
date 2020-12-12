@@ -8,7 +8,7 @@ const convertString = require('../utils/convertString');
 const {responseError, callRes} = require('../response/error');
 const checkInput = require('../utils/validInput');
 const validTime = require('../utils/validTime');
-
+const removeAccents = require('../utils/removeAccents');
 
 
 var multer = require('multer');
@@ -352,86 +352,62 @@ router.post("/logout", verify, async (req, res) => {
   }
 })
 
-router.post("/set_devtoken", (req, res) => {
-  var { token, devtype, devtoken } = req.body;
+router.post("/set_devtoken", verify, async (req, res) => {
+  var { token, devtype, devtoken } = req.query;
   if (!token || !devtype || !devtoken)
     return res.status(400).json({ code: 1004, message: "Please enter all fields" });
-  jwt.verify(token, process.env.jwtSecret, (err, user) => {
-
-    // not valid token
-    if (("undefined" === typeof (user))) {
-      return res.json({ code: 1004, message: "Invalid token" });
-    }
-    if (user.isBlocked) {
-      return res.json({ code: 1004, message: "Your account is blocked" });
-    }
-  });
+  let id = req.user.id;
   if (devtype != "Android" && devtype != "IOS")
     return res.status(400).json({ code: 1004, message: "Invalid device type" });
   else
     return res.status(400).json({ code: 1000, message: "Your device information has been recorded" });
 });
 
-router.post("/change_info_after_signup", uploader.single('avatar'), (req, res) => {
+router.post("/change_info_after_signup", verify, uploader.single('avatar'), async (req, res) => {
   // do what you want
   // Validation
-  if (!req.file || !req.body.username) {
+  let code, message;
+  if (req.file.buffer.byteLength > MAX_SIZE_IMAGE) {
+      console.log("FILE_SIZE_IS_TOO_BIG");
+      return setAndSendResponse(res, responseError.FILE_SIZE_IS_TOO_BIG);
+  }
+  if (req.query.username.length == 0){
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
+  }
+  let str = removeAccents(req.query.username);
+  var regex = /^[a-zA-Z][a-zA-Z_ ]*$/;
+  if (!regex.test(str)){
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
+  }
+  if (!req.file || !req.query.username) {
     return res.json({ code: 1004, message: "Please enter all the fields" });
   }
-  jwt.verify(req.body.token, config.get('jwtSecret'), (err, user) => {
-
-    // not valid token
-    if (("undefined" === typeof (user))) {
-      return res.json({ code: 1004, message: "Invalid token" });
-    }
-
-    User.findById(user.id, (err, user) => {
-      let promises;
-      promises = uploadFile(req.file);
-      promises.then(result => {
-        console.log(result);
-        user.name = req.body.username;
-        user.avatar = result;
-        user.save()
-          .then(result => {
-            res.status(201).send({
-              code: 1000,
-              message: "Successfully change user information",
-              data: {
-                id: user.id,
-                username: user.name,
-                phoneNumber: user.phoneNumber,
-                created: Date.now(),
-                avatar: user.avatar
-              }
-            });
-          })
-          .catch(err => {
-            // console.log(err);
-            res.status(500).send({
-              code: 1001,
-              message: "Can not connect to DB"
-            });
-          });
-      });
-    })
-  })
+     let id = req.user.id;
+     var user = await User.findById(id);
+     user.name = req.query.username;
+     let promise = await uploadFile(req.file);
+     user.avatar = promise;
+     user.save();
+     let data = {
+         code: "1000",
+         message: "OK",
+         data: {
+             id: user.id,
+             username: user.name,
+             phonenumber: user.phoneNumber,
+             created: String(Date.now()),
+             avatar: user.avatar.url
+         }
+     }
+     res.json({ code, message, data });
+     return;
 });
 
 router.post("/check_new_version", (req, res) => {
-  var { token, lastUpdate } = req.body;
+  var { token, lastUpdate } = req.query;
   if (!token || !lastUpdate)
     return res.status(400).json({ code: 1004, message: "Please enter all fields" });
-  jwt.verify(token, process.env.jwtSecret, (err, user) => {
-
-    // not valid token
-    if (("undefined" === typeof (user))) {
-      return res.json({ code: 1004, message: "Invalid token" });
-    }
-    if (user.isBlocked) {
-      return res.json({ code: 1004, message: "Your account is blocked" });
-    }
-  })
+ let id = req.user.id;
   if (lastUpdate != currentVersion) {
     return res.json({
       code: 1000,

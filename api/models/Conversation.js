@@ -26,12 +26,12 @@ const ConversationSchema = new Schema({
             type: String
         },
         unread: {
-            type: Number,
-            default: 1
+            type: String,
+            default: "1"
         },
         created: {
-            type: Date,
-            default: Date.now()
+            type: String,
+            default: String(Math.floor(Date.now() / 1000))
         }
     }]
 });

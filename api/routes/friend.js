@@ -32,7 +32,7 @@ router.post('/get_requested_friends', verify, async (req, res) => {
   let thisUser;
 
   // check input data
-  if ( index === undefined|| count === undefined) 
+  if ( index === undefined|| count === undefined)
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
   if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');
@@ -95,7 +95,7 @@ router.post('/set_request_friend', verify, async (req, res) => {
   }
 
   let { user_id } = req.query; // user_id là id của người nhận request friend
-  if (user_id === undefined) 
+  if (user_id === undefined)
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'user_id');
   if (typeof user_id != 'string')
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
@@ -109,10 +109,10 @@ router.post('/set_request_friend', verify, async (req, res) => {
       if (!targetUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'targetUser');
       thisUser = await User.findById(id);
       if(!thisUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'thisUser');
-      if(thisUser.friends.length >= MAX_FRIEND_NUMBER) 
+      if(thisUser.friends.length >= MAX_FRIEND_NUMBER)
         return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'out of Max Friends');
       let indexExist = thisUser.friends.findIndex(element => element.friend._id.equals(targetUser._id));
-      if (indexExist >= 0) 
+      if (indexExist >= 0)
         return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER, 'you two are friend');
       // indexExist < 0, chưa là bạn
       // add new element to sent request
@@ -147,53 +147,58 @@ router.post('/set_request_friend', verify, async (req, res) => {
 
 
 router.post("/set_block", verify, async(req, res) => {
-    let code, message;
-    let thisUser, targetUser;
+    var thisUser, targetUser;
 
-    let { token, user_id, type } = req.body;
+    let { token, user_id, type } = req.query;
     let id = req.user.id;
+    thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
     if (!token || !user_id || !type){
-        code = 1002;
-        message = "Please enter all fields";
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and user_id and type');
+    }
+    if (type != 1 && type != 0){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'type');
     }
     if (user_id == id){
-        code = 1004;
-        message = "Can't block yourself";
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot block yourself');
     }
     thisUser = await User.findById(id);
-    targetUser = await User.findById(user_id);
+    try{
+        targetUser = await User.findById(user_id);
+    } catch (err){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find user wanting to block');
+    }
+    if (targetUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'User wanted to block has been blocked by server');
+    }
     if (!targetUser){
-        code = 9995;
-        message = "User not existed";
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'User wanted to block not existed');
     }
     else{
         let index = thisUser.blockedList.findIndex(element => element.user._id.equals(targetUser._id));
         if (index < 0) {
-            if (type == 1){
+            if (type == 0){
                 thisUser.blockedList.push({ user: targetUser._id, createdAt: Date.now() });
                 thisUser.save();
-                code = 1000;
-                message = "Successfully blocked this user";
+                return callRes(res, responseError.OK, 'Successfully block this user');
             }
             else{
-                code = 1004;
-                message = "You have already blocked this user";
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, "You haven't blocked this user");
             }
         }
         else{
-            if (type == 0){
+            if (type == 1){
                 thisUser.blockedList.splice(index, 1);
                 thisUser.save();
-                code = 1000;
-                message = "Successfully unblocked this user";
+                return callRes(res, responseError.OK, 'Successfully unblock this user');
             }
             else{
-                code = 1004;
-                message = "You haven't blocked this user";
+                return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, "You have already blocked this user");
             }
         }
     }
-    res.json({ code, message });
 });
 
 // @route  POST it4788/friend/set_accept_friend
@@ -212,14 +217,14 @@ router.post('/set_accept_friend', verify, async (req, res) => {
   // user_id là id của người nhận request friend
   // is_accept : 0 là từ chối, 1 là đồng ý
   let { user_id, is_accept } = req.query;
-  if ( user_id === undefined|| is_accept === undefined) 
+  if ( user_id === undefined|| is_accept === undefined)
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'user_id, is_accept');
   if (typeof user_id != 'string')
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
   if (!checkInput.checkIsInteger (is_accept))
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'is_accept');
   is_accept = parseInt(is_accept, 10);
-  if (is_accept != 0 && is_accept != 1) 
+  if (is_accept != 0 && is_accept != 1)
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'is_accept');
   let id = req.user.id;
   if (id == user_id) {
@@ -246,7 +251,7 @@ router.post('/set_accept_friend', verify, async (req, res) => {
         return callRes(res, responseError.OK);
       } else if (is_accept == 1) {
         let currentTime = Date.now();
-        // bỏ block 
+        // bỏ block
 
         // xóa req bên nhận
         let indexExist = thisUser.friendRequestReceived.findIndex(element =>
@@ -279,32 +284,59 @@ router.post('/set_accept_friend', verify, async (req, res) => {
 
 
 router.post("/get_list_blocks", verify, async(req, res) => {
-    let { token, index, count } = req.body;
+    let { token, index, count } = req.query;
+    if (token == ''|| index == '' || count == ''){
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and index and count');
+    }
+    if (typeof index != "string"){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+    }
+    if (typeof count != "string"){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    let isNumIndex = /^\d+$/.test(index);
+    if (!isNumIndex){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+    }
+    let isNumCount = /^\d+$/.test(count);
+    if (!isNumCount){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    index = parseInt(req.query.index);
+    count = parseInt(req.query.count);
+    if (index < 0){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
+    }
+    if (count < 0){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    if (count == 0){
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
+    }
     let id = req.user.id;
+    let thisUser = await User.findById(id);
+    if (thisUser.isBlocked){
+        return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
+    }
     let code, message;
     let data = [];
     let targetUser;
-    if (!token || !index || !count){
-        code = 1002;
-        message = "Please enter all fields";
-    }
     targetUser = await User.findById(id);
     let endFor = targetUser.blockedList.length < index + count ? targetUser.blockedList.length : index + count;
     for (let i = index; i < endFor; i++) {
         let x = targetUser.blockedList[i];
+        let blockedUser = await User.findById(x.user);
         let userInfo = {
             id: null, // id of this guy
             username: null,
             avatar: null,
         }
-        userInfo.id = x.user._id.toString();
-        userInfo.username = x.user.name;
-        userInfo.avatar = x.user.avatar.url;
+        userInfo.id = blockedUser._id.toString();
+        userInfo.username = blockedUser.name;
+        userInfo.avatar = blockedUser.avatar;
         data.push(userInfo);
     }
-    code = 1000;
-    message = "Successfully get block list";
-    res.json({ code, message, data});
+    return callRes(res, responseError.OK, data);
 });
 
 // @route  POST it4788/friend/get_user_friends
@@ -331,7 +363,7 @@ router.post('/get_user_friends', verify, async (req, res) => {
   if (user_id && typeof user_id != 'string')
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'user_id');
   // check input data
-  if ( index === undefined|| count === undefined) 
+  if ( index === undefined|| count === undefined)
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
   if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');
@@ -388,7 +420,7 @@ router.post('/get_list_suggested_friends', verify, async (req, res) => {
   try {
   const { index, count } = req.query;
   // check input data
-  if ( index === undefined|| count === undefined) 
+  if ( index === undefined|| count === undefined)
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, ': index, count');
   if (!checkInput.checkIsInteger (index) || !checkInput.checkIsInteger (count))
     return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, ': index, count');

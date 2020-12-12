@@ -250,7 +250,7 @@ router.post('/set_read_message', verify, async (req, res) => {
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find conversation');
         }
         for (dialog in targetConversation.dialog){
-            targetConversation.dialog[dialog].unread = 0  ;
+            targetConversation.dialog[dialog].unread = "0"  ;
         }
         targetConversation = await targetConversation.save();
     }
@@ -265,7 +265,7 @@ router.post('/set_read_message', verify, async (req, res) => {
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'This is not your conversation');
         }
         for (dialog in targetConversation.dialog){
-            targetConversation.dialog[dialog].unread = 0;
+            targetConversation.dialog[dialog].unread = "0";
             await targetConversation.save();
         }
         targetConversation = await targetConversation.save();
@@ -297,19 +297,24 @@ router.post('/get_list_conversation', verify, async (req, res) => {
     if (typeof count != "string"){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
     }
-    index = parseInt(req.query.index);
-    count = parseInt(req.query.count);
-    if (isNaN(index)){
+    let isNumIndex = /^\d+$/.test(index);
+    if (!isNumIndex){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
     }
-    if (isNaN(count)){
+    let isNumCount = /^\d+$/.test(count);
+    if (!isNumCount){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
     }
+    index = parseInt(req.query.index);
+    count = parseInt(req.query.count);
     if (index < 0){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
     }
     if (count < 0){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+    }
+    if (count == 0){
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
     }
     var numNewMessage = 0;
     let data = [];
@@ -356,17 +361,17 @@ router.post('/get_list_conversation', verify, async (req, res) => {
         conversationInfo.id = x.conversationId;
         conversationInfo.partner.id = partner._id;
         conversationInfo.partner.username = partner.name;
-        conversationInfo.partner.avatar = partner.avatar;
+        conversationInfo.partner.avatar = partner.avatar.url;
         conversationInfo.lastMessage.message = lastDialog.content;
         conversationInfo.lastMessage.created = lastDialog.created;
         if (lastDialog.unread === undefined || lastDialog.unread == null){
-            conversationInfo.lastMessage.unread = 1;
+            conversationInfo.lastMessage.unread = "1";
         }
         else{
-            conversationInfo.lastMessage.unread = 0;
+            conversationInfo.lastMessage.unread = "0";
         }
         for (dialog in x.dialog){
-            if (x.dialog[dialog].unread == 1){
+            if (x.dialog[dialog].unread == "1"){
                 numNewMessage += 1;
                 break;
             }
@@ -409,19 +414,24 @@ router.post('/get_conversation', verify, async (req, res) => {
         if (typeof count != "string"){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
         }
-        index = parseInt(req.query.index);
-        count = parseInt(req.query.count);
-        if (isNaN(index)){
+        let isNumIndex = /^\d+$/.test(index);
+        if (!isNumIndex){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
         }
-        if (isNaN(count)){
+        let isNumCount = /^\d+$/.test(count);
+        if (!isNumCount){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
         }
+        index = parseInt(req.query.index);
+        count = parseInt(req.query.count);
         if (index < 0){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
         }
         if (count < 0){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
+        if (count == 0){
+            return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
         }
         let partnerId = req.query.partner_id;
         try{
@@ -474,7 +484,7 @@ router.post('/get_conversation', verify, async (req, res) => {
             dialogInfo.created = x.created;
             dialogInfo.sender.id = targetUser._id;
             dialogInfo.sender.username = targetUser.name;
-            dialogInfo.sender.avatar = targetUser.avatar;
+            dialogInfo.sender.avatar = targetUser.avatar.url;
             data.conversation.push(dialogInfo);
         }
     }
@@ -488,19 +498,24 @@ router.post('/get_conversation', verify, async (req, res) => {
         if (typeof count != "string"){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
         }
-        index = parseInt(req.query.index);
-        count = parseInt(req.query.count);
-        if (isNaN(index)){
+        let isNumIndex = /^\d+$/.test(index);
+        if (!isNumIndex){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
         }
-        if (isNaN(count)){
+        let isNumCount = /^\d+$/.test(count);
+        if (!isNumCount){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
         }
+        index = parseInt(req.query.index);
+        count = parseInt(req.query.count);
         if (index < 0){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
         }
         if (count < 0){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'count');
+        }
+        if (count == 0){
+            return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
         }
         let conversationId = req.query.conversation_id;
         targetConversation = await Conversation.findOne({ conversationId: conversationId });
@@ -529,7 +544,7 @@ router.post('/get_conversation', verify, async (req, res) => {
             dialogInfo.created = x.created;
             dialogInfo.sender.id = targetUser._id;
             dialogInfo.sender.username = targetUser.name;
-            dialogInfo.sender.avatar = targetUser.avatar;
+            dialogInfo.sender.avatar = targetUser.avatar.url;
             data.conversation.push(dialogInfo);
         }
     }
