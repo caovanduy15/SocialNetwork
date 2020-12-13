@@ -187,12 +187,12 @@ router.post('/check_verify_code', async (req, res) => {
     let user = await User.findOne({ phoneNumber: phonenumber });
     if(!user) {
       console.log("phonenumber is not existed");
-      return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'phonenumber is not existed');
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phonenumber is not existed');
     }
 
     if(user.isVerified) {
       console.log("user is verified");
-      return callRes(res, responseError.USER_EXISTED, 'user is verified');
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'user is verified');
     }
 
     if(user.verifyCode != code_verify) {

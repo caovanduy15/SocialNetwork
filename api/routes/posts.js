@@ -430,6 +430,11 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
     }
     var user = req.user;
 
+    if(!described && !image && !video) {
+        console.log("Khong co described, image, video");
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+    }
+
     // PARAMETER_TYPE_IS_INVALID
     if((described && typeof described !== "string") || (status && typeof status !== "string")) {
         console.log("PARAMETER_TYPE_IS_INVALID");
@@ -444,11 +449,6 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
     if(status && !statusArray.includes(status)) {
         console.log("Sai status");
         return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
-    }
-
-    if(!described && !image && !video) {
-        console.log("Khong co described, image, video");
-        return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
     }
 
     if(image && video) {
@@ -480,7 +480,7 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
             // PARAMETER_TYPE_IS_INVALID
             if(!mimetype) {
                 console.log("Mimetype image is invalid");
-                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+                return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
             }
 
             // FILE_SIZE_IS_TOO_BIG
@@ -507,7 +507,7 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
     if(video) {
         if(video.length > MAX_VIDEO_NUMBER) {
             console.log("MAX_VIDEO_NUMBER");
-            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
 
         for(const item_video of video) {
@@ -515,7 +515,7 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
             const mimetype = filetypes.test(item_video.mimetype);
             if(!mimetype) {
                 console.log("Mimetype video is invalid");
-                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+                return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
             }
 
             if (item_video.buffer.byteLength > MAX_SIZE_VIDEO) {
@@ -686,11 +686,11 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             image_del = JSON.parse(image_del);
         } catch (err) {
             console.log("image_del parse loi PARAMETER_TYPE_IS_INVALID");
-            return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
         if(!Array.isArray(image_del)) {
             console.log("image_del PARAMETER_TYPE_IS_INVALID");
-            return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
         for(const id_image_del of image_del) {
             if(typeof id_image_del !== "string") {
@@ -795,7 +795,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
 
         if(video.length > MAX_VIDEO_NUMBER) {
             console.log("MAX_VIDEO_NUMBER");
-            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
 
         for(const item_video of video) {
@@ -803,7 +803,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             const mimetype = filetypes.test(item_video.mimetype);
             if(!mimetype) {
                 console.log("Mimetype video is invalid");
-                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+                return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
             }
 
             if (item_video.buffer.byteLength > MAX_SIZE_VIDEO) {
@@ -836,7 +836,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
     if(image && !video) {
         if(post.video.url) {
             console.log("Have image and video up anh");
-            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+            return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
         }
 
         for(const item_image of image) {
@@ -844,7 +844,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             const mimetype = filetypes.test(item_image.mimetype);
             if(!mimetype) {
                 console.log("Mimetype image is invalid");
-                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+                return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
             }
 
             if (item_image.buffer.byteLength > MAX_SIZE_IMAGE) {
