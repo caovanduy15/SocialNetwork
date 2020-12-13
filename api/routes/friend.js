@@ -170,6 +170,9 @@ router.post("/set_block", verify, async(req, res) => {
     } catch (err){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find user wanting to block');
     }
+    if (targetUser == null){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find user wanting to block');
+    }
     if (targetUser.isBlocked){
         return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'User wanted to block has been blocked by server');
     }

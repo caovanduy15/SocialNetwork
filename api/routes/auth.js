@@ -385,34 +385,66 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
   if (str.length >= 30){
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username too long');
   }
-  if (!req.file || req.query.username == '') {
+  if (req.query.username == '') {
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'username and avatar');
   }
-  if (req.file.size > MAX_SIZE_IMAGE){
+  if (req.file){
+      if (req.file.size > MAX_SIZE_IMAGE){
       return callRes(res, responseError.FILE_SIZE_IS_TOO_BIG);
-  }
-  if (req.file.mimetype != 'image/jpeg' && req.file.mimetype != 'image/jpg' && req.file.mimetype != 'image/png'){
-      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'image type');
-  }
-     let id = req.user.id;
-     var user = await User.findById(id);
-     user.name = req.query.username;
-     let promise = await uploadFile(req.file);
-     user.avatar = promise;
-     user.save();
-     let data = {
-         code: "1000",
-         message: "OK",
-         data: {
-             id: user.id,
-             username: user.name,
-             phonenumber: user.phoneNumber,
-             created: String(user.registerDate),
-             avatar: user.avatar.url
+      }
+      if (req.file.mimetype != 'image/jpeg' && req.file.mimetype != 'image/jpg' && req.file.mimetype != 'image/png'){
+          return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'image type');
+      }
+         let id = req.user.id;
+         var user = await User.findById(id);
+         
+         if (user.name != ''){
+             return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
          }
-     }
-     res.json({ code, message, data });
-     return;
+
+         user.name = req.query.username;
+         let promise = await uploadFile(req.file);
+         user.avatar = promise;
+         user.save();
+         let data = {
+             code: "1000",
+             message: "OK",
+             data: {
+                 id: user.id,
+                 username: user.name,
+                 phonenumber: user.phoneNumber,
+                 created: String(user.registerDate),
+                 avatar: user.avatar.url
+             }
+         }
+         res.json({ code, message, data });
+         return;
+    }
+    else{
+        let id = req.user.id;
+        var user = await User.findById(id);
+
+        if (user.name != ''){
+            return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
+        }
+
+        user.name = req.query.username;
+        user.save();
+        let data = {
+            code: "1000",
+            message: "OK",
+            data: {
+                id: user.id,
+                username: user.name,
+                phonenumber: user.phoneNumber,
+                created: String(user.registerDate),
+                avatar: null
+            }
+        }
+        res.json({ code, message, data });
+        return;
+    }
+
 });
 
 router.post("/check_new_version", verify, async (req, res) => {
