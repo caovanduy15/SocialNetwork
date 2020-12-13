@@ -361,7 +361,7 @@ router.post("/get_list_blocks", verify, async(req, res) => {
         }
         userInfo.id = blockedUser._id.toString();
         userInfo.username = blockedUser.name;
-        userInfo.avatar = blockedUser.avatar;
+        userInfo.avatar = blockedUser.avatar.url;
         data.push(userInfo);
     }
     if (data.length == 0){
