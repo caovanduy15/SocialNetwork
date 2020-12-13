@@ -361,7 +361,7 @@ router.post("/set_devtoken", verify, async (req, res) => {
   if (thisUser.isBlocked){
       return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
   }
-  if (devtype != "Android" && devtype != "IOS")
+  if (devtype != 0 && devtype != 1)
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'devtype');
   else
     return callRes(res, responseError.OK);
@@ -378,6 +378,12 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
   var regex = /^[a-zA-Z][a-zA-Z_ ]*$/;
   if (!regex.test(str)){
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
+  }
+  if (str.length <= 3){
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username too short');
+  }
+  if (str.length >= 30){
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username too long');
   }
   if (!req.file || req.query.username == '') {
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'username and avatar');
