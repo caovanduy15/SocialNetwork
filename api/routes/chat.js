@@ -393,6 +393,9 @@ router.post('/get_list_conversation', verify, async (req, res) => {
         }
         data.push(conversationInfo);
     }
+    if (data.length == 0){
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
+    }
     code = "1000";
     message = "OK";
     res.json({ code, message, data, numNewMessage });
@@ -565,6 +568,9 @@ router.post('/get_conversation', verify, async (req, res) => {
     }
     else{
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'conversation_id or partner_id');
+    }
+    if (data.conversation.length == 0){
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
     }
     code = "1000";
     message = "OK";

@@ -313,7 +313,7 @@ router.post('/set_accept_friend', verify, async (req, res) => {
 
 router.post("/get_list_blocks", verify, async(req, res) => {
     let { token, index, count } = req.query;
-    if (token == ''|| index == '' || count == ''){
+    if (token === undefined || index === undefined || count === undefined){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and index and count');
     }
     if (typeof index != "string"){
@@ -363,6 +363,9 @@ router.post("/get_list_blocks", verify, async(req, res) => {
         userInfo.username = blockedUser.name;
         userInfo.avatar = blockedUser.avatar;
         data.push(userInfo);
+    }
+    if (data.length == 0){
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
     }
     return callRes(res, responseError.OK, data);
 });
