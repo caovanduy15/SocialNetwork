@@ -179,13 +179,16 @@ router.post("/set_block", verify, async(req, res) => {
     else{
         let index = thisUser.blockedList.findIndex(element => element.user._id.equals(targetUser._id));
         let indexFriend = thisUser.friends.findIndex(element => element.friend._id.equals(targetUser._id));
+        let indexTargetFriend = targetUser.friends.findIndex(element => element.friend._id.equals(thisUser._id));
         if (index < 0) {
             if (type == 0){
                 if (indexFriend >=0 ){
                     thisUser.friends.splice(indexFriend, 1);
+                    targetUser.friends.splice(indexTargetFriend, 1);
                 }
                 thisUser.blockedList.push({ user: targetUser._id, createdAt: Date.now() });
                 thisUser.save();
+                targetUser.save();
                 return callRes(res, responseError.OK, 'Successfully block this user');
             }
             else{
