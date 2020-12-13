@@ -42,7 +42,6 @@ router.post('/', verify, (req, res) => {
 
     Post.find(
         { "described": {$ne: null} }, 
-        null, {sort: '-created'},
         (err, posts) => {
 
             // problem with DB
@@ -89,35 +88,57 @@ router.post('/', verify, (req, res) => {
             console.log("num words: " + num_words)
             search_text = []
             console.log(words.slice(0,1))
-            for( var i=0; i <= (words.length-num_words); i++ ){
-                search_text.push(words.slice(i, (i+num_words)).join(" "));
+            for( var i=0; i < (words.length-num_words); i++ ){
+                var tmp = []; tmp.push(words[i]);
+                for (var j=i+1; j < (words.length); j++){
+                    var k=j;
+                    while (tmp.length < num_words){
+                        tmp.push(words[k]);
+                        k++;
+                    }
+                    if (tmp.length == num_words){
+                        search_text.push(tmp);
+                        tmp = [words[i]];
+                    }
+                }
+                //search_text.push(words.slice(i, (i+num_words)).join(" "));
             }
+            console.log(search_text);
 
             posts.forEach( (post, index, object) => {
-                var accepted = false
                 search_text.forEach(text => {
-                    if (post["described"].toLowerCase().includes(text.toLowerCase())){
-                        accepted = true;
+                    var accepted = true
+                    for (var i=0; i<text.length; i++){
+                        if (!post["described"].toLowerCase().includes(text[i].toLowerCase())){
+                            accepted = false;
+                            break;
+                        }
+                    }
+                    if (accepted) {
+                        found_posts.push(post);
                         return;
                     }
                 })
-                if (accepted) found_posts.push(post)
             });
 
             posts = posts.filter(item => !found_posts.includes(item))
 
             // condition 4: ignore accents
             posts.forEach( (post, index, object) => {
-                var accepted = false
                 search_text.forEach(text => {
                     var described = removeAccents(post["described"].toLowerCase())
-                    text = removeAccents(text.toLowerCase());
-                    if (described.includes(text)){
-                        accepted = true;
+                    var accepted = true
+                    for (var i=0; i<text.length; i++){
+                        if (!described.includes(removeAccents(text[i].toLowerCase()))){
+                            accepted = false;
+                            break;
+                        }
+                    }
+                    if (accepted) {
+                        found_posts.push(post);
                         return;
                     }
                 })
-                if (accepted) found_posts.push(post)
             });
 
             posts = posts.filter(item => !found_posts.includes(item))
