@@ -438,7 +438,7 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
                 id: user.id,
                 username: user.name,
                 phonenumber: user.phoneNumber,
-                created: String(user.registerDate),
+                created: String(Math.floor(user.registerDate / 1000)),
                 avatar: null
             }
         }
