@@ -34,7 +34,7 @@ router.post ('/get_user_info', async (req, res) => {
   let tokenUser, tokenError;
   if (token) {
     tokenUser = await getUserIDFromToken(token);
-    if (typeof tokenUser === 'string') return callRes(res, responseError[tokenUser]);
+    if (tokenUser && typeof tokenUser === 'string') return callRes(res, responseError[tokenUser]);
   }
   if (!user_id && tokenUser ) {
     user_id = tokenUser.id;
