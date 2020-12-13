@@ -64,6 +64,9 @@ router.post('/delete_conversation', verify, async (req, res) => {
         } catch (err){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
         }
+        if (partnerUser == null){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
+        }
         try{
             var targetConversation1 = await Conversation.findOne({ firstUser: partnerId });
             var targetConversation2 = await Conversation.findOne({ secondUser: partnerId });
@@ -131,6 +134,9 @@ router.post('/delete_message', verify, async (req, res) => {
         try{
             var partnerUser = await User.findById(partnerId);
         } catch (err){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
+        }
+        if (partnerUser == null){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
         }
         try{
@@ -224,6 +230,9 @@ router.post('/set_read_message', verify, async (req, res) => {
         try{
             var partnerUser = await User.findById(partnerId);
         } catch (err){
+            return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
+        }
+        if (partnerUser == null){
             return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find partner');
         }
         try{
