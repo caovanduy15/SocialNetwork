@@ -482,16 +482,26 @@ function uploadFile(file) {
   const newNameFile = new Date().toISOString() + file.originalname;
   const blob = bucket.file(newNameFile);
   const blobStream = blob.createWriteStream({
-    metadata: {
-      contentType: file.mimetype,
-    },
+      metadata: {
+          contentType: file.mimetype,
+      },
   });
   const publicUrl =
-    `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURI(blob.name)}?alt=media`;
+      `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURI(blob.name)}?alt=media`;
   return new Promise((resolve, reject) => {
 
-    blobStream.on('error', reject);
-    blobStream.end(file.buffer, resolve({ url: publicUrl }));
+      blobStream.on('error', function(err) {
+          reject(err);
+      });
+
+      blobStream.on('finish', () => {
+          resolve({
+              filename: newNameFile,
+              url: publicUrl
+          });
+        });
+
+      blobStream.end(file.buffer);
   });
 }
 
