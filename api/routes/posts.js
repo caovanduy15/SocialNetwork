@@ -143,11 +143,11 @@ router.post('/get_list_videos', async (req, res) => {
         post: slicePosts.map(post => {
             return {
                 id: post._id,
-                video: {
+                video: post.video.url ? {
                     url: post.video.url,
-                    thumb: post.video.url ? "null": undefined
-                },
-                described: post.described,
+                    thumb: null
+                }: null,
+                described: post.described ? post.described: null,
                 created: post.created.toString(),
                 modified: post.modified.toString(),
                 like: post.likedUser.length.toString(),
@@ -156,12 +156,12 @@ router.post('/get_list_videos', async (req, res) => {
                 is_blocked: is_blocked(user, post.author),
                 can_comment: "1",
                 can_edit: can_edit(user, post.author),
-                state: post.status,
+                state: post.status ? post.status : null,
                 author: post.author ? {
                     id: post.author._id,
-                    username: post.author.name,
-                    avatar: post.author.avatar
-                } : undefined,
+                    username: post.author.name ? post.author.name : null,
+                    avatar: post.author.avatar.url ? post.author.avatar.url: null
+                } : null,
             }
         }),
         new_items: index_last_id.toString(),
@@ -252,12 +252,12 @@ router.post('/get_list_posts', async (req, res) => {
         posts: slicePosts.map(post => {
             return {
                 id: post._id,
-                image: post.image.map(image => { return {id: image._id, url: image.url};}),
-                video: {
+                image: post.image.length > 0 ? post.image.map(image => { return {id: image._id, url: image.url};}) : null,
+                video: post.video.url ? {
                     url: post.video.url,
-                    thumb: post.video.url ? "null": undefined
-                },
-                described: post.described,
+                    thumb: null
+                }: null,
+                described: post.described ? post.described : null,
                 created: post.created.toString(),
                 modified: post.modified.toString(),
                 like: post.likedUser.length.toString(),
@@ -266,12 +266,12 @@ router.post('/get_list_posts', async (req, res) => {
                 is_blocked: is_blocked(user, post.author),
                 can_comment: "1",
                 can_edit: can_edit(user, post.author),
-                state: post.status,
+                state: post.status ? post.status : null,
                 author: post.author ? {
                     id: post.author._id,
-                    username: post.author.name,
-                    avatar: post.author.avatar
-                } : undefined,
+                    username: post.author.name ? post.author.name : null,
+                    avatar: post.author.avatar.url ? post.author.avatar.url: null
+                } : null,
             }
         }),
         new_items: index_last_id.toString(),
@@ -327,23 +327,23 @@ router.post('/get_post', async (req, res) => {
                 message: "OK",
                 data: {
                     id: post._id,
-                    described: post.described,
+                    described: post.described ? post.described : null,
                     created: post.created.toString(),
                     modified: post.modified.toString(),
                     like: post.likedUser.length.toString(),
                     comment: post.comments.length.toString(),
                     is_liked: user ? (post.likedUser.includes(user._id) ? "1": "0") : "0",
-                    image: post.image.map(image => { return {id: image._id, url: image.url};}),
-                    video: {
+                    image: post.image.length > 0 ? post.image.map(image => { return {id: image._id, url: image.url};}) : null,
+                    video: post.video.url ? {
                         url: post.video.url,
-                        thumb: post.video.url ? "null" : undefined
-                    },
+                        thumb: null
+                    } : null,
                     author: post.author ? {
                         id: post.author._id,
-                        name: post.author.name,
-                        avatar: post.author.avatar
-                    } : undefined,
-                    state: post.status,
+                        name: post.author.name ? post.author.name : null,
+                        avatar: post.author.avatar.url ? post.author.avatar.url: null
+                    } : null,
+                    state: post.status ? post.status : null,
                     is_blocked: is_blocked(user, post.author),
                     can_edit: can_edit(user, post.author),
                     can_comment: "1"
@@ -456,10 +456,13 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
         return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
     }
 
+    var now = Math.floor(Date.now() / 1000);
     var post = new Post({
         author: user.id,
         described: described,
-        status: status
+        status: status,
+        created: now,
+        modified: now
     });
 
     let promises;
