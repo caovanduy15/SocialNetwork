@@ -356,7 +356,7 @@ router.post("/logout", verify, async (req, res) => {
 
 router.post("/set_devtoken", verify, async (req, res) => {
   var { token, devtype, devtoken } = req.query;
-  if (token == ''|| devtype == ''|| devtoken == '')
+  if (token === undefined || devtype === undefined || devtoken === undefined)
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and devtype and devtoken');
   let id = req.user.id;
   let thisUser = await User.findById(id);
@@ -373,6 +373,9 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
   // do what you want
   // Validation
   let code, message;
+  if (req.query.username === undefined) {
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'username');
+  }
   if (req.query.username.length == 0){
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
   }
@@ -387,9 +390,7 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
   if (str.length >= 30){
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username too long');
   }
-  if (req.query.username == '') {
-    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'username and avatar');
-  }
+
   if (req.file){
       if (req.file.size > MAX_SIZE_IMAGE){
       return callRes(res, responseError.FILE_SIZE_IS_TOO_BIG);
@@ -399,8 +400,8 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
       }
          let id = req.user.id;
          var user = await User.findById(id);
-         
-         if (user.name != ''){
+
+         if (user.name !== undefined){
              return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
          }
 
@@ -426,7 +427,7 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
         let id = req.user.id;
         var user = await User.findById(id);
 
-        if (user.name != ''){
+        if (user.name !== undefined){
             return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
         }
 
@@ -451,7 +452,7 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
 
 router.post("/check_new_version", verify, async (req, res) => {
   var { token, last_update } = req.query;
-  if (token == '' || last_update == '')
+  if (token === undefined || last_update === undefined)
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and last_update');
     let id = req.user.id;
     let thisUser = await User.findById(id);

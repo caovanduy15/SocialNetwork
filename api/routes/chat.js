@@ -45,7 +45,7 @@ router.post('/add_dialog', async (req, res) => {
 
 router.post('/delete_conversation', verify, async (req, res) => {
     let token = req.query.token;
-    if (!token){
+    if (token === undefined){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token');
     }
     if (typeof token != "string"){
@@ -112,7 +112,7 @@ router.post('/delete_conversation', verify, async (req, res) => {
 
 router.post('/delete_message', verify, async (req, res) => {
     let token = req.query.token;
-    if (!token){
+    if (token === undefined){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token');
     }
     if (typeof token != "string"){
@@ -123,7 +123,7 @@ router.post('/delete_message', verify, async (req, res) => {
     if (thisUser.isBlocked){
         return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
     }
-    if (!req.query.message_id){
+    if (req.query.message_id === undefined){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'message_id');
     }
     if (req.query.partner_id){
@@ -213,7 +213,7 @@ router.post('/delete_message', verify, async (req, res) => {
 
 router.post('/set_read_message', verify, async (req, res) => {
     let token = req.query.token;
-    if (!token){
+    if (token === undefined){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token');
     }
     if (typeof token != "string"){
@@ -287,7 +287,7 @@ router.post('/set_read_message', verify, async (req, res) => {
 
 router.post('/get_list_conversation', verify, async (req, res) => {
     let token = req.query.token;
-    if (!token){
+    if (token === undefined){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token');
     }
     if (typeof token != "string"){
@@ -300,6 +300,12 @@ router.post('/get_list_conversation', verify, async (req, res) => {
         return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
     }
     let { index, count } = req.query;
+    if (index === undefined){
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'index');
+    }
+    if (count === undefined){
+        return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'count');
+    }
     if (typeof index != "string"){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'index');
     }
@@ -394,7 +400,7 @@ router.post('/get_list_conversation', verify, async (req, res) => {
 
 router.post('/get_conversation', verify, async (req, res) => {
     let token = req.query.token;
-    if (!token){
+    if (token === undefined){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token');
     }
     if (typeof token != "string"){
