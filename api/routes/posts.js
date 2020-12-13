@@ -143,11 +143,11 @@ router.post('/get_list_videos', async (req, res) => {
         post: slicePosts.map(post => {
             return {
                 id: post._id,
-                video: {
+                video: post.video.url ? {
                     url: post.video.url,
-                    thumb: post.video.url ? "null": undefined
-                },
-                described: post.described,
+                    thumb: null
+                }: null,
+                described: post.described ? post.described: null,
                 created: post.created.toString(),
                 modified: post.modified.toString(),
                 like: post.likedUser.length.toString(),
@@ -156,12 +156,12 @@ router.post('/get_list_videos', async (req, res) => {
                 is_blocked: is_blocked(user, post.author),
                 can_comment: "1",
                 can_edit: can_edit(user, post.author),
-                state: post.status,
+                state: post.status ? post.status : null,
                 author: post.author ? {
                     id: post.author._id,
-                    username: post.author.name,
-                    avatar: post.author.avatar
-                } : undefined,
+                    username: post.author.name ? post.author.name : null,
+                    avatar: post.author.avatar.url ? post.author.avatar.url: null
+                } : null,
             }
         }),
         new_items: index_last_id.toString(),
@@ -252,12 +252,12 @@ router.post('/get_list_posts', async (req, res) => {
         posts: slicePosts.map(post => {
             return {
                 id: post._id,
-                image: post.image.map(image => { return {id: image._id, url: image.url};}),
-                video: {
+                image: post.image.length > 0 ? post.image.map(image => { return {id: image._id, url: image.url};}) : null,
+                video: post.video.url ? {
                     url: post.video.url,
-                    thumb: post.video.url ? "null": undefined
-                },
-                described: post.described,
+                    thumb: null
+                }: null,
+                described: post.described ? post.described : null,
                 created: post.created.toString(),
                 modified: post.modified.toString(),
                 like: post.likedUser.length.toString(),
@@ -266,12 +266,12 @@ router.post('/get_list_posts', async (req, res) => {
                 is_blocked: is_blocked(user, post.author),
                 can_comment: "1",
                 can_edit: can_edit(user, post.author),
-                state: post.status,
+                state: post.status ? post.status : null,
                 author: post.author ? {
                     id: post.author._id,
-                    username: post.author.name,
-                    avatar: post.author.avatar
-                } : undefined,
+                    username: post.author.name ? post.author.name : null,
+                    avatar: post.author.avatar.url ? post.author.avatar.url: null
+                } : null,
             }
         }),
         new_items: index_last_id.toString(),
@@ -327,23 +327,23 @@ router.post('/get_post', async (req, res) => {
                 message: "OK",
                 data: {
                     id: post._id,
-                    described: post.described,
+                    described: post.described ? post.described : null,
                     created: post.created.toString(),
                     modified: post.modified.toString(),
                     like: post.likedUser.length.toString(),
                     comment: post.comments.length.toString(),
                     is_liked: user ? (post.likedUser.includes(user._id) ? "1": "0") : "0",
-                    image: post.image.map(image => { return {id: image._id, url: image.url};}),
-                    video: {
+                    image: post.image.length > 0 ? post.image.map(image => { return {id: image._id, url: image.url};}) : null,
+                    video: post.video.url ? {
                         url: post.video.url,
-                        thumb: post.video.url ? "null" : undefined
-                    },
+                        thumb: null
+                    } : null,
                     author: post.author ? {
                         id: post.author._id,
-                        name: post.author.name,
-                        avatar: post.author.avatar
-                    } : undefined,
-                    state: post.status,
+                        name: post.author.name ? post.author.name : null,
+                        avatar: post.author.avatar.url ? post.author.avatar.url: null
+                    } : null,
+                    state: post.status ? post.status : null,
                     is_blocked: is_blocked(user, post.author),
                     can_edit: can_edit(user, post.author),
                     can_comment: "1"
@@ -430,6 +430,11 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
     }
     var user = req.user;
 
+    if(!described && !image && !video) {
+        console.log("Khong co described, image, video");
+        return setAndSendResponse(res, responseError.PARAMETER_IS_NOT_ENOUGH);
+    }
+
     // PARAMETER_TYPE_IS_INVALID
     if((described && typeof described !== "string") || (status && typeof status !== "string")) {
         console.log("PARAMETER_TYPE_IS_INVALID");
@@ -446,20 +451,18 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
         return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
     }
 
-    if(!described && !image && !video) {
-        console.log("Khong co described, image, video");
-        return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
-    }
-
     if(image && video) {
         console.log("Have image and video");
         return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
     }
 
+    var now = Math.floor(Date.now() / 1000);
     var post = new Post({
         author: user.id,
         described: described,
-        status: status
+        status: status,
+        created: now,
+        modified: now
     });
 
     let promises;
@@ -477,7 +480,7 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
             // PARAMETER_TYPE_IS_INVALID
             if(!mimetype) {
                 console.log("Mimetype image is invalid");
-                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+                return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
             }
 
             // FILE_SIZE_IS_TOO_BIG
@@ -504,7 +507,7 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
     if(video) {
         if(video.length > MAX_VIDEO_NUMBER) {
             console.log("MAX_VIDEO_NUMBER");
-            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
 
         for(const item_video of video) {
@@ -512,7 +515,7 @@ router.post('/add_post', cpUpload, verify, async (req, res, next) => {
             const mimetype = filetypes.test(item_video.mimetype);
             if(!mimetype) {
                 console.log("Mimetype video is invalid");
-                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+                return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
             }
 
             if (item_video.buffer.byteLength > MAX_SIZE_VIDEO) {
@@ -683,11 +686,11 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             image_del = JSON.parse(image_del);
         } catch (err) {
             console.log("image_del parse loi PARAMETER_TYPE_IS_INVALID");
-            return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
         if(!Array.isArray(image_del)) {
             console.log("image_del PARAMETER_TYPE_IS_INVALID");
-            return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
         for(const id_image_del of image_del) {
             if(typeof id_image_del !== "string") {
@@ -792,7 +795,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
 
         if(video.length > MAX_VIDEO_NUMBER) {
             console.log("MAX_VIDEO_NUMBER");
-            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+            return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
         }
 
         for(const item_video of video) {
@@ -800,7 +803,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             const mimetype = filetypes.test(item_video.mimetype);
             if(!mimetype) {
                 console.log("Mimetype video is invalid");
-                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+                return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
             }
 
             if (item_video.buffer.byteLength > MAX_SIZE_VIDEO) {
@@ -833,7 +836,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
     if(image && !video) {
         if(post.video.url) {
             console.log("Have image and video up anh");
-            return setAndSendResponse(res, responseError.UNKNOWN_ERROR);
+            return setAndSendResponse(res, responseError.UPLOAD_FILE_FAILED);
         }
 
         for(const item_image of image) {
@@ -841,7 +844,7 @@ router.post('/edit_post', cpUpload, verify, async (req, res) => {
             const mimetype = filetypes.test(item_image.mimetype);
             if(!mimetype) {
                 console.log("Mimetype image is invalid");
-                return setAndSendResponse(res, responseError.PARAMETER_TYPE_IS_INVALID);
+                return setAndSendResponse(res, responseError.PARAMETER_VALUE_IS_INVALID);
             }
 
             if (item_image.buffer.byteLength > MAX_SIZE_IMAGE) {

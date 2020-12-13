@@ -187,12 +187,12 @@ router.post('/check_verify_code', async (req, res) => {
     let user = await User.findOne({ phoneNumber: phonenumber });
     if(!user) {
       console.log("phonenumber is not existed");
-      return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'phonenumber is not existed');
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'phonenumber is not existed');
     }
 
     if(user.isVerified) {
       console.log("user is verified");
-      return callRes(res, responseError.USER_EXISTED, 'user is verified');
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'user is verified');
     }
 
     if(user.verifyCode != code_verify) {
@@ -356,14 +356,14 @@ router.post("/logout", verify, async (req, res) => {
 
 router.post("/set_devtoken", verify, async (req, res) => {
   var { token, devtype, devtoken } = req.query;
-  if (token == ''|| devtype == ''|| devtoken == '')
+  if (token === undefined || devtype === undefined || devtoken === undefined)
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and devtype and devtoken');
   let id = req.user.id;
   let thisUser = await User.findById(id);
   if (thisUser.isBlocked){
       return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'Your account has been blocked');
   }
-  if (devtype != "Android" && devtype != "IOS")
+  if (devtype != 0 && devtype != 1)
     return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'devtype');
   else
     return callRes(res, responseError.OK);
@@ -373,6 +373,9 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
   // do what you want
   // Validation
   let code, message;
+  if (req.query.username === undefined) {
+    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'username');
+  }
   if (req.query.username.length == 0){
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
   }
@@ -381,39 +384,75 @@ router.post("/change_info_after_signup", verify, uploader.single('avatar'), asyn
   if (!regex.test(str)){
       return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username');
   }
-  if (!req.file || req.query.username == '') {
-    return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'username and avatar');
+  if (str.length <= 3){
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username too short');
   }
-  if (req.file.size > MAX_SIZE_IMAGE){
+  if (str.length >= 30){
+      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'username too long');
+  }
+
+  if (req.file){
+      if (req.file.size > MAX_SIZE_IMAGE){
       return callRes(res, responseError.FILE_SIZE_IS_TOO_BIG);
-  }
-  if (req.file.mimetype != 'image/jpeg' && req.file.mimetype != 'image/jpg' && req.file.mimetype != 'image/png'){
-      return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'image type');
-  }
-     let id = req.user.id;
-     var user = await User.findById(id);
-     user.name = req.query.username;
-     let promise = await uploadFile(req.file);
-     user.avatar = promise;
-     user.save();
-     let data = {
-         code: "1000",
-         message: "OK",
-         data: {
-             id: user.id,
-             username: user.name,
-             phonenumber: user.phoneNumber,
-             created: String(user.registerDate),
-             avatar: user.avatar.url
+      }
+      if (req.file.mimetype != 'image/jpeg' && req.file.mimetype != 'image/jpg' && req.file.mimetype != 'image/png'){
+          return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'image type');
+      }
+         let id = req.user.id;
+         var user = await User.findById(id);
+
+         if (user.name !== undefined){
+             return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
          }
-     }
-     res.json({ code, message, data });
-     return;
+
+         user.name = req.query.username;
+         let promise = await uploadFile(req.file);
+         user.avatar = promise;
+         user.save();
+         let data = {
+             code: "1000",
+             message: "OK",
+             data: {
+                 id: user.id,
+                 username: user.name,
+                 phonenumber: user.phoneNumber,
+                 created: String(Math.floor(user.registerDate / 1000)),
+                 avatar: user.avatar.url
+             }
+         }
+         res.json({ code, message, data });
+         return;
+    }
+    else{
+        let id = req.user.id;
+        var user = await User.findById(id);
+
+        if (user.name !== undefined){
+            return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER);
+        }
+
+        user.name = req.query.username;
+        user.save();
+        let data = {
+            code: "1000",
+            message: "OK",
+            data: {
+                id: user.id,
+                username: user.name,
+                phonenumber: user.phoneNumber,
+                created: String(Math.floor(user.registerDate / 1000)),
+                avatar: null
+            }
+        }
+        res.json({ code, message, data });
+        return;
+    }
+
 });
 
 router.post("/check_new_version", verify, async (req, res) => {
   var { token, last_update } = req.query;
-  if (token == '' || last_update == '')
+  if (token === undefined || last_update === undefined)
     return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and last_update');
     let id = req.user.id;
     let thisUser = await User.findById(id);
@@ -443,16 +482,26 @@ function uploadFile(file) {
   const newNameFile = new Date().toISOString() + file.originalname;
   const blob = bucket.file(newNameFile);
   const blobStream = blob.createWriteStream({
-    metadata: {
-      contentType: file.mimetype,
-    },
+      metadata: {
+          contentType: file.mimetype,
+      },
   });
   const publicUrl =
-    `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURI(blob.name)}?alt=media`;
+      `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURI(blob.name)}?alt=media`;
   return new Promise((resolve, reject) => {
 
-    blobStream.on('error', reject);
-    blobStream.end(file.buffer, resolve({ url: publicUrl }));
+      blobStream.on('error', function(err) {
+          reject(err);
+      });
+
+      blobStream.on('finish', () => {
+          resolve({
+              filename: newNameFile,
+              url: publicUrl
+          });
+        });
+
+      blobStream.end(file.buffer);
   });
 }
 

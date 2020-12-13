@@ -111,31 +111,48 @@ router.post('/set_request_friend', verify, async (req, res) => {
       if(!thisUser) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'thisUser');
       if(thisUser.friends.length >= MAX_FRIEND_NUMBER)
         return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'out of Max Friends');
+
       let indexExist = thisUser.friends.findIndex(element => element.friend._id.equals(targetUser._id));
       if (indexExist >= 0)
         return callRes(res, responseError.ACTION_HAS_BEEN_DONE_PREVIOUSLY_BY_THIS_USER, 'you two are friend');
       // indexExist < 0, chưa là bạn
+      let findIndexBlockTarget = targetUser.blockedList.findIndex(e => e.user._id.equals(thisUser._id));
+      
+      // đang bị bên kia block
+      if (findIndexBlockTarget >= 0) return callRes(res, responseError.NOT_ACCESS, 'bị block rồi em ơi ko gửi kb được');
+      else {// ko bị bên kia block, xóa block bên kia đi (nếu có) 
+        let findIndexBlockThis = thisUser.blockedList.findIndex(e => e.user._id.equals(targetUser._id));
+        if (findIndexBlockThis >= 0) thisUser.blockedList.splice(findIndexBlockThis, 1);
+      }
       // add new element to sent request
       let addElement = { "_id": targetUser._id };
       let isExisted = thisUser.friendRequestSent.findIndex(element => element._id.equals(addElement._id));
-      if (isExisted < 0) {
+      
+      if (isExisted < 0) { // chưa gửi yêu cầu trước đó
         thisUser.friendRequestSent.push(addElement);
         thisUser = await thisUser.save();
+        data.requested_friends = thisUser.friendRequestSent.length;
+        // add new element of request received
+        let addElement1 = { fromUser: { "_id": thisUser._id } };
+        let isExisted1 = targetUser.friendRequestReceived.findIndex(element =>
+          element.fromUser._id.equals(addElement1.fromUser._id));
+        if (isExisted1 < 0) {
+          targetUser.friendRequestReceived.push(addElement1);
+          targetUser = await targetUser.save();
+        }
+        targetUser = await targetUser.save();
+      } else { // đã gửi yêu cầu trước đó, gửi lại để hủy yêu cầu
+        thisUser.friendRequestSent.splice(isExisted,1);
+        thisUser = await thisUser.save();
+        data.requested_friends = thisUser.friendRequestSent.length;
+        // xóa request bên nhận
+        let isExisted1 = targetUser.friendRequestReceived.findIndex(element =>
+          element.fromUser._id.equals(thisUser._id));
+        if (isExisted1 >= 0) {
+          targetUser.friendRequestReceived.splice(isExisted1, 1);
+          targetUser = await targetUser.save();
+        }
       }
-      data.requested_friends = thisUser.friendRequestSent.length;
-
-      // add new or update exist element of request received
-      let addElement1 = { fromUser: { "_id": thisUser._id } };
-      let isExisted1 = targetUser.friendRequestReceived.findIndex(element =>
-        element.fromUser._id.equals(addElement1.fromUser._id));
-
-      if (isExisted1 < 0) {
-        targetUser.friendRequestReceived.push(addElement1);
-      } else {
-        let currentTime = Date.now();
-        targetUser.friendRequestReceived[isExisted1].lastCreated = currentTime;
-      }
-      targetUser = await targetUser.save();
       return callRes(res, responseError.OK, data);
 
     } catch (err) {
@@ -170,6 +187,9 @@ router.post("/set_block", verify, async(req, res) => {
     } catch (err){
         return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find user wanting to block');
     }
+    if (targetUser == null){
+        return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'Cannot find user wanting to block');
+    }
     if (targetUser.isBlocked){
         return callRes(res, responseError.USER_IS_NOT_VALIDATED, 'User wanted to block has been blocked by server');
     }
@@ -178,10 +198,17 @@ router.post("/set_block", verify, async(req, res) => {
     }
     else{
         let index = thisUser.blockedList.findIndex(element => element.user._id.equals(targetUser._id));
+        let indexFriend = thisUser.friends.findIndex(element => element.friend._id.equals(targetUser._id));
+        let indexTargetFriend = targetUser.friends.findIndex(element => element.friend._id.equals(thisUser._id));
         if (index < 0) {
             if (type == 0){
+                if (indexFriend >=0 ){
+                    thisUser.friends.splice(indexFriend, 1);
+                    targetUser.friends.splice(indexTargetFriend, 1);
+                }
                 thisUser.blockedList.push({ user: targetUser._id, createdAt: Date.now() });
                 thisUser.save();
+                targetUser.save();
                 return callRes(res, responseError.OK, 'Successfully block this user');
             }
             else{
@@ -251,8 +278,9 @@ router.post('/set_accept_friend', verify, async (req, res) => {
         return callRes(res, responseError.OK);
       } else if (is_accept == 1) {
         let currentTime = Date.now();
-        // bỏ block
-
+        // bỏ block, nếu đang block
+        let gg = thisUser.blockedList.findIndex(e => e.user._id.equals(sentUser._id));
+        if (gg >= 0) thisUser.blockedList.splice(gg, 1);
         // xóa req bên nhận
         let indexExist = thisUser.friendRequestReceived.findIndex(element =>
           element.fromUser._id.equals(sentUser._id));
@@ -285,7 +313,7 @@ router.post('/set_accept_friend', verify, async (req, res) => {
 
 router.post("/get_list_blocks", verify, async(req, res) => {
     let { token, index, count } = req.query;
-    if (token == ''|| index == '' || count == ''){
+    if (token === undefined || index === undefined || count === undefined){
         return callRes(res, responseError.PARAMETER_IS_NOT_ENOUGH, 'token and index and count');
     }
     if (typeof index != "string"){
@@ -333,8 +361,11 @@ router.post("/get_list_blocks", verify, async(req, res) => {
         }
         userInfo.id = blockedUser._id.toString();
         userInfo.username = blockedUser.name;
-        userInfo.avatar = blockedUser.avatar;
+        userInfo.avatar = blockedUser.avatar.url;
         data.push(userInfo);
+    }
+    if (data.length == 0){
+        return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
     }
     return callRes(res, responseError.OK, data);
 });
@@ -379,7 +410,6 @@ router.post('/get_user_friends', verify, async (req, res) => {
     if (user_id && user_id != id) {
       targetUser = await User.findById(user_id).select({ "friends": 1 });
       if (!targetUser) return callRes(res, responseError.PARAMETER_VALUE_IS_INVALID, 'targetUser');
-      // check block here
 
     } else {
       targetUser = thisUser;

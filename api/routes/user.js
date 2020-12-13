@@ -34,7 +34,7 @@ router.post ('/get_user_info', async (req, res) => {
   let tokenUser, tokenError;
   if (token) {
     tokenUser = await getUserIDFromToken(token);
-    if (typeof tokenUser === 'string') return callRes(res, responseError[tokenUser]);
+    if (tokenUser && typeof tokenUser === 'string') return callRes(res, responseError[tokenUser]);
   }
   if (!user_id && tokenUser ) {
     user_id = tokenUser.id;
@@ -142,13 +142,13 @@ router.post('/set_user_info', cpUpload, verify, async (req, res) => {
     } catch (error) {
       return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA, 'user');
     }
-  
+
     if (fileAvatar) {
       if (!checkSizeImage(fileAvatar)) 
         return callRes(res, responseError.FILE_SIZE_IS_TOO_BIG, 'avatar: file quá lớn, max = 4MB');
       if (!checkTypeImage(fileAvatar))
         return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'avatar: sai định dạng');
-      if (user.avatar){
+      if (user.avatar.filename){
         try {
           console.log('xoa avatar...');
           await deleteRemoteFile(user.avatar.filename);
@@ -170,7 +170,7 @@ router.post('/set_user_info', cpUpload, verify, async (req, res) => {
         return callRes(res, responseError.FILE_SIZE_IS_TOO_BIG, 'cover_image: file quá lớn, max = 4MB');
       if (!checkTypeImage(fileCoverImage))
         return callRes(res, responseError.PARAMETER_TYPE_IS_INVALID, 'cover_image: sai định dạng');
-      if (user.coverImage){
+      if (user.coverImage.filename){
         try {
           console.log('xoa coverImage...');
           await deleteRemoteFile(user.coverImage.filename);

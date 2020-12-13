@@ -18,13 +18,11 @@ const postSchema = new Schema({
     },
     // time when post is created
     created: {
-        type: Number,
-        default: Math.floor(Date.now() / 1000)
+        type: Number
     },
     // time when post is modified
     modified:  {
-        type: Number,
-        default: Math.floor(Date.now() / 1000)
+        type: Number
     },
     // number people liked post
     like: {

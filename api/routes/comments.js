@@ -93,13 +93,13 @@ router.post('/set_comment', verify, async (req, res) => {
             data: sliceComments.map(comment => {
                 return {
                     id: comment._id,
-                    comment: comment.comment,
+                    comment: comment.comment ? comment.comment : null,
                     created: comment.created.toString(),
                     poster: comment.poster ? {
                         id: comment.poster._id,
-                        name: comment.poster.name,
-                        avatar: comment.poster.avatar
-                    } : undefined,
+                        name: comment.poster.name ? comment.poster.name : null,
+                        avatar: comment.poster.avatar.url ? comment.poster.avatar.url : null
+                    } : null,
                     is_blocked: is_blocked(userDB, comment.poster)
                 };
             })
@@ -183,13 +183,13 @@ router.post('/get_comment', async (req, res) => {
             data: sliceComments.map(comment => {
                 return {
                     id: comment._id,
-                    comment: comment.comment,
+                    comment: comment.comment ? comment.comment : null,
                     created: comment.created.toString(),
                     poster: comment.poster ? {
                         id: comment.poster._id,
-                        name: comment.poster.name,
-                        avatar: comment.poster.avatar
-                    } : undefined,
+                        name: comment.poster.name ? comment.poster.name : null,
+                        avatar: comment.poster.avatar.url ? comment.poster.avatar.url : null
+                    } : null,
                     is_blocked: is_blocked(user, comment.poster)
                 };
             })
