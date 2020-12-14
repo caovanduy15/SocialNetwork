@@ -15,7 +15,7 @@ const searchSchema = Schema(
         type: Schema.Types.String,
         required: true,
     },
-    createdAt: {
+    created: {
         type: Schema.Types.Date,
         default: Date.now
     }

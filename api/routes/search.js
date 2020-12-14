@@ -231,15 +231,20 @@ router.post('/get_saved_search', verify, (req, res) => {
             }
 
             unique_searches = unique_searches.slice(index, index+count);
-            unique_searches.forEach(item => {
-                item.createdAt = timeToSecond(item.createdAt);
-            })
+            var format_searches = []
+            for (var i=0; i<unique_searches.length; i++){
+                format_searches.push({
+                    id: unique_searches[i].id,
+                    keyword: unique_searches[i].keyword,
+                    created: timeToSecond(unique_searches[i].created).toString()
+                })
+            }
 
             return res.json({
                 "code": "200",
                 "message": "OK",
                 "data": {
-                    "searches": unique_searches.slice(0,20)
+                    "searches": format_searches.slice(0,20)
                 }
             })
             
