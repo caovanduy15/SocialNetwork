@@ -6,6 +6,7 @@ const removeAccents  = require('../utils/removeAccents');
 const { ObjectId } = require('mongodb');
 const {responseError, callRes, setAndSendResponse} = require('../response/error');
 const validInput = require('../utils/validInput');
+const { timeToSecond } = require('../utils/validTime');
 
 // search posts by keyword
 router.post('/', verify, (req, res) => {
@@ -230,6 +231,9 @@ router.post('/get_saved_search', verify, (req, res) => {
             }
 
             unique_searches = unique_searches.slice(index, index+count);
+            unique_searches.forEach(item => {
+                item.createdAt = timeToSecond(item.createdAt);
+            })
 
             return res.json({
                 "code": "200",
