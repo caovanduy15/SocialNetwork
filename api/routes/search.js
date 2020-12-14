@@ -147,8 +147,7 @@ router.post('/search', verify, (req, res) => {
 
             if (found_posts.length < 1) return callRes(res, responseError.NO_DATA_OR_END_OF_LIST_DATA);
 
-            const data = {
-                "posts": found_posts.map(post => {
+            const data = found_posts.map(post => {
                     return {
                         id: post._id,
                         image: post.image.map(image => {return image.url}),
@@ -167,7 +166,7 @@ router.post('/search', verify, (req, res) => {
                         described: post.described,
                     }
                 })
-            }
+            
 
             return res.json({
                 "code": "1000",
@@ -243,9 +242,7 @@ router.post('/get_saved_search', verify, (req, res) => {
             return res.json({
                 "code": "200",
                 "message": "OK",
-                "data": {
-                    "searches": format_searches.slice(0,20)
-                }
+                "data": format_searches.slice(0,20)
             })
             
         }
