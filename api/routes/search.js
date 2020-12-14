@@ -8,7 +8,7 @@ const {responseError, callRes, setAndSendResponse} = require('../response/error'
 const validInput = require('../utils/validInput');
 
 // search posts by keyword
-router.post('/', verify, (req, res) => {
+router.post('/search', verify, (req, res) => {
 
     var { keyword, index, count} = req.query;
     const user = req.user;
