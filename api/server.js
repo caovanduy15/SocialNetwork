@@ -2,6 +2,8 @@ require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
 const cors = require('cors');
+const multer = require('multer');
+const {responseError, callRes} = require('./response/error');
 
 const app = express()
 
@@ -29,5 +31,15 @@ app.use('/it4788', require('./routes/friend'));
 app.use('/it4788', require('./routes/settings'));
 app.use('/it4788', require('./routes/user'));
 app.use('/it4788', require('./routes/chat'));
+app.use(function (err, req, res, next) {
+    if(err instanceof multer.MulterError) {
+        if(err.code === 'LIMIT_UNEXPECTED_FILE') {
+            return callRes(res, responseError.EXCEPTION_ERROR, "'" + err.field + "'" + " không đúng với mong đợi. Xem lại trường ảnh hoặc video gửi lên trong yêu cầu cho đúng");
+        }
+    }
+    console.log(err);
+    return callRes(res, responseError.UNKNOWN_ERROR, "Lỗi chưa xác định");
+})
+
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`Server is running on port ${port}`))
