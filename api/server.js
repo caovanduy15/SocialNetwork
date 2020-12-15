@@ -37,6 +37,7 @@ app.use(function (err, req, res, next) {
             return callRes(res, responseError.EXCEPTION_ERROR, "'" + err.field + "'" + " không đúng với mong đợi. Xem lại trường ảnh hoặc video gửi lên trong yêu cầu cho đúng");
         }
     }
+    console.log(err);
     return callRes(res, responseError.UNKNOWN_ERROR, "Lỗi chưa xác định");
 })
 
